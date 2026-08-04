@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Clube da Sorte full-stack application (compiled server + React SPA bundle)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clube-da-sorte:prod
+    container_name: clubedasorte_app_prod
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://clubedasorte_user:SUA_SENHA_ALTAMENTE_SEGURA_AQUI@db:5432/clubedasorte_db
+      - JWT_SECRET=SUA_CHAVE_COMPORTAL_JWT_DE_PRODUCAO_PRIMEIRA
+      - APP_URL=https://clubedasorte.athominfotech.com.br
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Audited Production PostgreSQL Relational Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_clubedasorte_prod
+    restart: always
+    environment:
+      - POSTGRES_USER=clubedasorte_user
+      - POSTGRES_PASSWORD=SUA_SENHA_ALTAMENTE_SEGURA_AQUI
+      - POSTGRES_DB=clubedasorte_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clubedasorte_user -d clubedasorte_db"]
+      timeout: 5s
+      retries: 5
+      interval: 10s
+
+volumes:
+  postgres_data_prod:
