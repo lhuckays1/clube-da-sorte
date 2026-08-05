@@ -134,7 +134,13 @@ export default function AdminDashboard({ token, setToken }: { token: string; set
               placeholder="admin@rifas.com.br"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-600 p-3.5 rounded-xl text-xs font-semibold outline-hidden"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-600 p-3.5 rounded-xl text-xs font-semibold outline-hidden text-base font-semibold text-slate-800
+placeholder:text-slate-400
+outline-none
+transition
+focus:border-indigo-600
+focus:ring-2
+focus:ring-indigo-100"
             />
           </div>
 
@@ -146,7 +152,13 @@ export default function AdminDashboard({ token, setToken }: { token: string; set
               placeholder="••••••••"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-600 p-3.5 rounded-xl text-xs font-semibold outline-hidden"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-600 p-3.5 rounded-xl text-xs font-semibold outline-hidden text-base font-semibold text-slate-800
+placeholder:text-slate-400
+outline-none
+transition
+focus:border-indigo-600
+focus:ring-2
+focus:ring-indigo-100"
             />
           </div>
 

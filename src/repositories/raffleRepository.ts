@@ -103,6 +103,33 @@ export class RaffleRepository {
       },
     });
   }
+  static async listCombos(rifaId: number) {
+    return prisma.combo.findMany({
+      where: {
+        rifaId,
+      },
+      orderBy: {
+        quantidade: "asc",
+      },
+    });
+  }
+
+  static async updateCombo(
+    id: number,
+    data: {
+      nome?: string;
+      quantidade?: number;
+      desconto?: number;
+      valorFinal?: number;
+    }
+  ) {
+    return prisma.combo.update({
+      where: {
+        id,
+      },
+      data,
+    });
+  }
 
   static async deleteCombo(id: number) {
     return prisma.combo.delete({

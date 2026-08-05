@@ -6,6 +6,7 @@ import { OrderController } from "./controllers/orderController";
 import { BuyerController } from "./controllers/buyerController";
 import { ConfigController } from "./controllers/configController";
 import { DashboardController } from "./controllers/dashboardController";
+import { UserController } from "./controllers/userController";
 import { prisma } from "./db";
 
 export const apiRouter = Router();
@@ -95,8 +96,29 @@ apiRouter.delete("/admin/rifas/:id", authMiddleware, RaffleController.delete);
 apiRouter.post("/admin/rifas/:id/sortear", authMiddleware, RaffleController.executeDraw);
 
 // Combos and Offers
-apiRouter.post("/admin/combos", authMiddleware, RaffleController.addCombo);
-apiRouter.delete("/admin/combos/:id", authMiddleware, RaffleController.deleteCombo);
+apiRouter.post(
+  "/admin/combos",
+  authMiddleware,
+  RaffleController.addCombo
+);
+
+apiRouter.get(
+  "/admin/rifas/:id/combos",
+  authMiddleware,
+  RaffleController.listCombos
+);
+
+apiRouter.put(
+  "/admin/combos/:id",
+  authMiddleware,
+  RaffleController.updateCombo
+);
+
+apiRouter.delete(
+  "/admin/combos/:id",
+  authMiddleware,
+  RaffleController.deleteCombo
+);
 
 // Orders validation control
 apiRouter.get("/admin/pedidos", authMiddleware, OrderController.listAdmin);
@@ -105,6 +127,45 @@ apiRouter.post("/admin/pedidos/:id/cancelar", authMiddleware, OrderController.ca
 
 // Buyers and history analytics
 apiRouter.get("/admin/compradores", authMiddleware, BuyerController.listAdmin);
+
+// ==========================================
+// USERS MANAGEMENT
+// ==========================================
+
+// Listar usuários
+apiRouter.get(
+  "/admin/users",
+  authMiddleware,
+  UserController.list
+);
+
+// Criar usuário
+apiRouter.post(
+  "/admin/users",
+  authMiddleware,
+  UserController.create
+);
+
+// Atualizar usuário
+apiRouter.put(
+  "/admin/users/:id",
+  authMiddleware,
+  UserController.update
+);
+
+// Alterar senha
+apiRouter.patch(
+  "/admin/users/:id/password",
+  authMiddleware,
+  UserController.updatePassword
+);
+
+// Excluir usuário
+apiRouter.delete(
+  "/admin/users/:id",
+  authMiddleware,
+  UserController.delete
+);
 
 // General configuration switches
 apiRouter.post("/admin/configuracoes", authMiddleware, ConfigController.saveConfigs);

@@ -278,6 +278,7 @@ export class RaffleController {
   static async delete(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
+      
       const rifa = await RaffleRepository.findById(id);
       
       await RaffleRepository.delete(id);
@@ -333,6 +334,85 @@ export class RaffleController {
       res.json(combo);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async listCombos(req: Request, res: Response) {
+    try {
+      const rifaId = parseInt(req.params.id);
+
+      const rifa = await RaffleRepository.findById(rifaId);
+
+      if (!rifa) {
+        res.status(404).json({
+          error: "Rifa não encontrada",
+        });
+        return;
+      }
+
+      const combos = await RaffleRepository.listCombos(rifaId);
+
+      res.json(combos);
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message,
+      });
+    }
+  }
+
+  static async updateCombo(req: Request, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+
+      const {
+        nome,
+        quantidade,
+        desconto,
+      } = req.body;
+
+      const combo = await prisma.combo.findUnique({
+        where: {
+          id,
+        },
+        include: {
+          rifa: true,
+        },
+      });
+
+      if (!combo) {
+        res.status(404).json({
+          error: "Combo não encontrado",
+        });
+        return;
+      }
+
+      const valorBase =
+        Number(quantidade) * combo.rifa.valorPorNumero;
+
+      const valorFinal =
+        valorBase * (1 - Number(desconto) / 100);
+
+      const updated = await RaffleRepository.updateCombo(id, {
+        nome,
+        quantidade: Number(quantidade),
+        desconto: Number(desconto),
+        valorFinal,
+      });
+
+      // Log administrativo
+      const user = (req as AuthenticatedRequest).user;
+
+      await AdminLogRepository.create({
+        usuarioId: user?.id,
+        acao: "UPDATE_COMBO",
+        detalhes: `Combo atualizado: "${nome}" (ID: ${id})`,
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message,
+      });
     }
   }
 

@@ -1,3 +1,4 @@
+
 import express from "express";
 import http from "http";
 import path from "path";
@@ -11,6 +12,7 @@ import { apiRouter } from "./src/api";
 import { initWebSocket } from "./src/websocket";
 import { initExpirationJob } from "./src/jobs/expirationJob";
 import { prisma } from "./src/db";
+
 
 // Load local environment configurations
 dotenv.config();

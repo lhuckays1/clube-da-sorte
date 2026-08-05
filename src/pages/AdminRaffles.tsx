@@ -57,6 +57,12 @@ export default function AdminRaffles({ token }: { token: string }) {
   const [comboQuantidade, setComboQuantidade] = useState("10");
   const [comboDesconto, setComboDesconto] = useState("15");
 
+  // Lista de combos da rifa selecionada
+  const [combos, setCombos] = useState<any[]>([]);
+
+  // Combo em edição
+  const [editingComboId, setEditingComboId] = useState<number | null>(null);
+
   // Form states (Draw/Sorteio)
   const [showDrawForm, setShowDrawForm] = useState(false);
   const [drawRifaId, setDrawRifaId] = useState<number | null>(null);
@@ -79,6 +85,76 @@ export default function AdminRaffles({ token }: { token: string }) {
   useEffect(() => {
     fetchRifas();
   }, []);
+
+  const fetchCombos = (rifaId: number) => {
+  fetch(`/api/admin/rifas/${rifaId}/combos`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      if (Array.isArray(data)) {
+        setCombos(data);
+      } else {
+        setCombos([]);
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      setCombos([]);
+    });
+};
+
+const handleEditCombo = (combo: any) => {
+  setEditingComboId(combo.id);
+
+  setComboNome(combo.nome);
+
+  setComboQuantidade(String(combo.quantidade));
+
+  setComboDesconto(String(combo.desconto));
+};
+
+
+const handleDeleteCombo = async (comboId: number) => {
+  if (!confirm("Deseja realmente excluir este combo?")) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/admin/combos/${comboId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    // Se estava editando este combo, limpa o formulário
+    if (editingComboId === comboId) {
+      setEditingComboId(null);
+      setComboNome("");
+      setComboQuantidade("10");
+      setComboDesconto("15");
+    }
+
+    // Atualiza a lista
+    if (comboRifaId) {
+      fetchCombos(comboRifaId);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao excluir o combo.");
+  }
+};
 
   const resetRifaFields = () => {
     setEditingRifaId(null);
@@ -186,8 +262,16 @@ export default function AdminRaffles({ token }: { token: string }) {
       desconto: parseFloat(comboDesconto),
     };
 
-    fetch("/api/admin/combos", {
-      method: "POST",
+    const url = editingComboId
+      ? `/api/admin/combos/${editingComboId}`
+      : "/api/admin/combos";
+
+    const method = editingComboId
+      ? "PUT"
+      : "POST";
+
+    fetch(url, {
+      method,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -199,12 +283,16 @@ export default function AdminRaffles({ token }: { token: string }) {
         if (data.error) {
           alert(`Erro: ${data.error}`);
         } else {
-          setShowComboForm(false);
-          setComboRifaId(null);
+          setEditingComboId(null);
           setComboNome("");
           setComboQuantidade("10");
           setComboDesconto("15");
-          alert("Combo promocional inserido!");
+          fetchCombos(comboRifaId!);
+          alert(
+            editingComboId
+              ? "Combo atualizado com sucesso!"
+              : "Combo promocional criado com sucesso!"
+          );
         }
       })
       .catch((err) => console.error(err));
@@ -355,7 +443,21 @@ export default function AdminRaffles({ token }: { token: string }) {
                         {/* Setup Combos */}
                         {rifa.status === "ATIVO" && (
                           <button 
-                            onClick={() => { setComboRifaId(rifa.id); setShowComboForm(true); }}
+                            onClick={() => {
+                                setComboRifaId(rifa.id);
+
+                                setEditingComboId(null);
+
+                                setComboNome("");
+
+                                setComboQuantidade("10");
+
+                                setComboDesconto("15");
+
+                                fetchCombos(rifa.id);
+
+                                setShowComboForm(true);
+                            }}
                             title="Vincular Combo Promocional"
                             className="px-2.5 py-1 text-[10px] bg-amber-50 text-amber-700 font-extrabold rounded-lg border border-amber-100 transition hover:bg-amber-100"
                           >
@@ -403,9 +505,9 @@ export default function AdminRaffles({ token }: { token: string }) {
       {showRifaForm && (
         <div className="fixed inset-0 z-50 bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden my-8">
-            <div className="bg-slate-900 text-white p-6 space-y-1">
-              <h3 className="text-lg font-black">{editingRifaId ? "Editar Ação da Sorte" : "Criar Nova Ação da Sorte"}</h3>
-              <p className="text-slate-400 text-xs font-semibold">Preencha os dados e configure as cotas limites de aquisição.</p>
+            <div className="bg-gradient-to-r from-slate-900 to-indigo-900 text-white px-8 py-7">
+              <h3 className="text-2xl font-extrabold tracking-tight">{editingRifaId ? "Editar Ação da Sorte" : "Criar Nova Ação da Sorte"}</h3>
+              <p className="text-slate-200 text-sm mt-2">Preencha os dados e configure as cotas limites de aquisição.</p>
             </div>
 
             <form onSubmit={handleSubmitRifa} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
@@ -418,7 +520,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                     placeholder="Ex: Chevrolet Camaro 2.0 Turbo 2022"
                     value={titulo}
                     onChange={(e) => setTitulo(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold focus:border-indigo-650 inline-block"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold focus:border-indigo-650 inline-block text-slate-900"
                   />
                 </div>
 
@@ -431,7 +533,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                     placeholder="0.50"
                     value={valorPorNumero}
                     onChange={(e) => setValorPorNumero(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-center"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-center text-slate-900"
                   />
                 </div>
 
@@ -445,7 +547,7 @@ export default function AdminRaffles({ token }: { token: string }) {
   placeholder="Ex: 350"
   value={quantidadeTotal}
   onChange={(e) => setQuantidadeTotal(e.target.value)}
-  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-extrabold text-center"
+  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-extrabold text-center text-slate-900"
 />
 
 <span className="text-[10px] text-slate-400 font-semibold">
@@ -459,7 +561,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                     type="date" 
                     value={dataSorteio}
                     onChange={(e) => setDataSorteio(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-slate-900"
                   />
                 </div>
 
@@ -468,7 +570,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                   <select 
                     value={metodoSorteio}
                     onChange={(e) => setMetodoSorteio(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-extrabold text-center"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-extrabold text-center text-slate-900"
                   >
                     <option value="AUTOMATICO">SISTEMA AUTOMÁTICO (RANDOM ADQUIRIDO)</option>
                     <option value="LOTERIA_FEDERAL">LOTERIA FEDERAL (INDICAÇÃO EXTRAÇÃO)</option>
@@ -483,7 +585,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                     placeholder="https://images.unsplash.com/url1, https://images.unsplash.com/url2"
                     value={imagensInput}
                     onChange={(e) => setImagensInput(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-[10px] font-mono outline-hidden"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-[10px] font-mono outline-hidden text-slate-900"
                   />
                   <span className="text-[10px] text-slate-400 font-semibold block">Deixe em branco para usar uma imagem padrão premium Unsplash.</span>
                 </div>
@@ -495,7 +597,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                     placeholder="Destaque as principais características..."
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-slate-900"
                   ></textarea>
                 </div>
 
@@ -506,7 +608,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                     placeholder="A data de sorteio está pré-agendada..."
                     value={regulamento}
                     onChange={(e) => setRegulamento(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-slate-900"
                   ></textarea>
                 </div>
 
@@ -554,6 +656,71 @@ export default function AdminRaffles({ token }: { token: string }) {
             </div>
 
             <form onSubmit={handleSubmitCombo} className="p-6 space-y-4">
+              {combos.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-bold text-slate-700 mb-3">
+                      Combos já cadastrados
+                    </h4>
+
+                    <div className="space-y-2 max-h-52 overflow-y-auto">
+                      {combos.map((combo: any) => (
+                        <div
+                          key={combo.id}
+                          className={`flex items-center justify-between rounded-xl px-4 py-3 border transition-all duration-200 ${
+                            editingComboId === combo.id
+                              ? "border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-200/40"
+                              : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+
+                                <div className="font-bold text-slate-800">
+                                    {combo.nome}
+                                </div>
+
+                                {editingComboId === combo.id && (
+                                    <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[9px] font-black tracking-wide uppercase">
+                                        Editando
+                                    </span>
+                                )}
+
+                            </div>
+
+                            <div className="text-xs text-slate-500">
+                              {combo.quantidade} números • {combo.desconto}% OFF
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 items-center">
+
+                            <button
+                                type="button"
+                                onClick={() => handleEditCombo(combo)}
+                                className={`transition ${
+                                  editingComboId === combo.id
+                                      ? "text-indigo-700 scale-110"
+                                      : "text-indigo-600 hover:text-indigo-800"
+                              }`}
+                              >
+                                <Edit3 className="w-4 h-4" />
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleDeleteCombo(combo.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+
+                          </div>
+
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               <div className="space-y-1">
                 <label className="block text-xs font-black text-slate-500 uppercase">Nome Amigável do Desconto</label>
                 <input 
@@ -562,7 +729,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                   placeholder="Ex: Super Pack de 10 Cotas (15% Off)"
                   value={comboNome}
                   onChange={(e) => setComboNome(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold"
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-slate-900"
                 />
               </div>
 
@@ -574,7 +741,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                     required 
                     value={comboQuantidade}
                     onChange={(e) => setComboQuantidade(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center font-extrabold text-xs"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center font-extrabold text-xs text-slate-900"
                   />
                 </div>
                 <div className="space-y-1">
@@ -584,7 +751,7 @@ export default function AdminRaffles({ token }: { token: string }) {
                     required 
                     value={comboDesconto}
                     onChange={(e) => setComboDesconto(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center font-extrabold text-xs"
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center font-extrabold text-xs text-slate-900"
                   />
                 </div>
               </div>
@@ -593,15 +760,29 @@ export default function AdminRaffles({ token }: { token: string }) {
                 <button 
                   type="button" 
                   onClick={() => setShowComboForm(false)}
-                  className="flex-1 py-3 text-slate-505 hover:bg-slate-100 font-extrabold border border-slate-200 rounded-xl transition text-xs"
+                  className="
+flex-1
+py-3
+bg-slate-200
+hover:bg-slate-300
+text-slate-800
+font-extrabold
+border
+border-slate-300
+rounded-xl
+transition
+duration-200
+text-xs
+shadow-sm
+"
                 >
                   Cancelar
                 </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-xl transition text-xs py-3"
-                >
-                  Ativar Promoção
+                <button
+                    type="submit"
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-xl transition text-xs py-3"
+                  >
+                    {editingComboId ? "Salvar Alterações" : "Ativar Promoção"}
                 </button>
               </div>
             </form>

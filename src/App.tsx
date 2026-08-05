@@ -22,6 +22,7 @@ import ClientArea from "./pages/ClientArea";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRaffles from "./pages/AdminRaffles";
 import AdminOrders from "./pages/AdminOrders";
+import AdminUsers from "./pages/AdminUsers";
 import AdminConfig from "./pages/AdminConfig";
 import Terms from "./pages/Terms";
 
@@ -109,6 +110,13 @@ function Layout() {
                 <Link to="/admin/pedidos" className="hover:text-emerald-400 transition flex items-center gap-1.5 font-bold">
                   <Users className="w-4 h-4 text-emerald-400" /> Pedidos & Clientes
                 </Link>
+                <Link
+                  to="/admin/users"
+                  className="hover:text-emerald-400 transition flex items-center gap-1.5 font-bold"
+                  >
+                  <Users className="w-4 h-4 text-emerald-400" />
+                  Usuários
+                </Link>
                 <Link to="/admin/config" className="hover:text-emerald-400 transition flex items-center gap-1.5 font-bold">
                   <Settings className="w-4 h-4 text-emerald-400" /> Ajustes Logo/PIX
                 </Link>
@@ -139,6 +147,14 @@ function Layout() {
           <Route path="/admin" element={<AdminDashboard token={token} setToken={setToken} />} />
           <Route path="/admin/rifas" element={token ? <AdminRaffles token={token} /> : <AdminDashboard token={token} setToken={setToken} />} />
           <Route path="/admin/pedidos" element={token ? <AdminOrders token={token} /> : <AdminDashboard token={token} setToken={setToken} />} />
+          <Route
+              path="/admin/users"
+              element={
+                token
+                  ? <AdminUsers token={token} />
+                  : <AdminDashboard token={token} setToken={setToken} />
+              }
+          />
           <Route path="/admin/config" element={token ? <AdminConfig token={token} /> : <AdminDashboard token={token} setToken={setToken} />} />
         </Routes>
       </main>
