@@ -131,6 +131,9 @@ export class RaffleController {
         dataSorteio,
         metodoSorteio,
         imagensUrls,
+        temCotasPremiadas,
+        quantidadeCotasPremiadas,
+        valorCotaPremiada,
       } = req.body;
 
       if (!titulo || !valorPorNumero || !quantidadeTotal) {
@@ -138,14 +141,61 @@ export class RaffleController {
         return;
       }
 
+      const quantidadeTotalNumerica = parseInt(quantidadeTotal);
+      const valorPorNumeroNumerico = parseFloat(valorPorNumero);
+
+      const temCotasPremiadasNumerico = Boolean(temCotasPremiadas);
+
+      const quantidadeCotasNumerica = temCotasPremiadasNumerico
+        ? parseInt(quantidadeCotasPremiadas)
+        : 0;
+
+      const valorCotaNumerico = temCotasPremiadasNumerico
+        ? parseFloat(valorCotaPremiada)
+        : 0;
+
+      if (
+        !Number.isInteger(quantidadeTotalNumerica) ||
+        quantidadeTotalNumerica < 1
+      ) {
+        res.status(400).json({
+          error: "A quantidade total de números da rifa é inválida.",
+        });
+        return;
+      }
+
+      if (
+        temCotasPremiadasNumerico &&
+        quantidadeCotasNumerica > quantidadeTotalNumerica
+      ) {
+        res.status(400).json({
+          error: `A quantidade de cotas premiadas não pode ser maior que a quantidade total da rifa (${quantidadeTotalNumerica}).`,
+        });
+        return;
+      }
+
+      if (
+        temCotasPremiadasNumerico &&
+        (!Number.isFinite(valorCotaNumerico) || valorCotaNumerico <= 0)
+      ) {
+        res.status(400).json({
+          error: "O valor de cada cota premiada deve ser maior que zero.",
+        });
+        return;
+      }
+
       const r = await RaffleRepository.create({
         titulo,
         descricao: descricao || "",
         regulamento: regulamento || "",
-        valorPorNumero: parseFloat(valorPorNumero),
-        quantidadeTotal: parseInt(quantidadeTotal),
+        valorPorNumero: valorPorNumeroNumerico,
+        quantidadeTotal: quantidadeTotalNumerica,
         dataSorteio: dataSorteio ? new Date(dataSorteio) : null,
         metodoSorteio: metodoSorteio || "AVULSO",
+
+        temCotasPremiadas: temCotasPremiadasNumerico,
+        quantidadeCotasPremiadas: quantidadeCotasNumerica,
+        valorCotaPremiada: valorCotaNumerico,
       });
 
       if (Array.isArray(imagensUrls) && imagensUrls.length > 0) {
@@ -241,6 +291,9 @@ export class RaffleController {
         quantidadeTotal: sourceRifa.quantidadeTotal,
         metodoSorteio: sourceRifa.metodoSorteio,
         dataSorteio: sourceRifa.dataSorteio,
+        temCotasPremiadas: false,
+        quantidadeCotasPremiadas: 0,
+        valorCotaPremiada: 0,
       });
 
       // Duplicate images

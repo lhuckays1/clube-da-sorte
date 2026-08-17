@@ -25,6 +25,16 @@ interface Order {
     quantidade: number;
     rifa: { id: number; titulo: string };
   }>;
+  cotasPremiadas?: Array<{
+    id: number;
+    rifaId: number;
+    numero: string;
+    premio: number;
+    status: string;
+    pedidoId: number | null;
+    compradorId: number | null;
+    premiadoEm: string | null;
+  }>;
 }
 
 export default function ClientArea() {
@@ -128,6 +138,12 @@ export default function ClientArea() {
                 const isCancelled = order.status === "CANCELADO";
                 const item = order.itens?.[0];
                 const listNumeros = item?.numeros.split(",") || [];
+                const cotasPremiadas = order.cotasPremiadas || [];
+
+                const totalPremios = cotasPremiadas.reduce(
+                  (total, cota) => total + cota.premio,
+                  0
+                );
 
                 return (
                   <div key={order.id} className="bg-[#131317] border border-zinc-800/60 rounded-3xl p-5 shadow-lg space-y-4 hover:border-zinc-700/60 transition duration-150">
@@ -171,6 +187,72 @@ export default function ClientArea() {
                         )}
                       </div>
                     </div>
+
+                    {isPaid && cotasPremiadas.length > 0 && (
+                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🎉</span>
+                          <div>
+                            <h5 className="text-sm font-black text-amber-300">
+                              Parabéns! Você ganhou!
+                            </h5>
+                            <p className="text-[10px] font-semibold text-amber-200/70">
+                              Este pedido possui {cotasPremiadas.length}{" "}
+                              {cotasPremiadas.length === 1
+                                ? "Cota Premiada"
+                                : "Cotas Premiadas"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          {cotasPremiadas.map((cota) => (
+                            <div
+                              key={cota.id}
+                              className="flex items-center justify-between bg-zinc-950/60 border border-amber-500/20 rounded-xl px-3 py-2.5"
+                            >
+                              <div>
+                                <span className="block text-[9px] uppercase font-bold text-slate-500">
+                                  Número Premiado
+                                </span>
+
+                                <strong className="block font-mono text-sm font-black text-white">
+                                  {cota.numero}
+                                </strong>
+                              </div>
+
+                              <div className="text-right">
+                                <span className="block text-[9px] uppercase font-bold text-slate-500">
+                                  Prêmio
+                                </span>
+
+                                <strong className="block text-sm font-black text-emerald-400">
+                                  R$ {cota.premio.toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </strong>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {cotasPremiadas.length > 1 && (
+                          <div className="border-t border-amber-500/20 pt-3 flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-black text-amber-200/70">
+                              Total em prêmios
+                            </span>
+
+                            <strong className="text-base font-black text-emerald-400">
+                              R$ {totalPremios.toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </strong>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="pt-2">
                       <Link 

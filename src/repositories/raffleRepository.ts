@@ -32,18 +32,105 @@ export class RaffleRepository {
     quantidadeTotal: number;
     dataSorteio?: Date | null;
     metodoSorteio: string;
+
+    // Cotas Premiadas
+    temCotasPremiadas: boolean;
+    quantidadeCotasPremiadas: number;
+    valorCotaPremiada: number;
   }) {
-    return prisma.rifa.create({
-      data: {
-        titulo: data.titulo,
-        descricao: data.descricao,
-        regulamento: data.regulamento,
-        valorPorNumero: data.valorPorNumero,
-        quantidadeTotal: data.quantidadeTotal,
-        dataSorteio: data.dataSorteio,
-        metodoSorteio: data.metodoSorteio,
-        status: "ATIVO",
-      },
+    const quantidadeCotas = data.temCotasPremiadas
+      ? data.quantidadeCotasPremiadas
+      : 0;
+
+    const valorCota = data.temCotasPremiadas
+      ? data.valorCotaPremiada
+      : 0;
+
+    if (data.temCotasPremiadas) {
+      if (
+        !Number.isInteger(quantidadeCotas) ||
+        quantidadeCotas < 1 ||
+        quantidadeCotas > data.quantidadeTotal
+      ) {
+        throw new Error(
+          `A quantidade de cotas premiadas deve estar entre 1 e ${data.quantidadeTotal}.`
+        );
+      }
+
+      if (!Number.isFinite(valorCota) || valorCota <= 0) {
+        throw new Error(
+          "O valor de cada cota premiada deve ser maior que zero."
+        );
+      }
+    }
+
+    return prisma.$transaction(async (tx) => {
+      // 1. Criar a rifa
+      const rifa = await tx.rifa.create({
+        data: {
+          titulo: data.titulo,
+          descricao: data.descricao,
+          regulamento: data.regulamento,
+          valorPorNumero: data.valorPorNumero,
+          quantidadeTotal: data.quantidadeTotal,
+          dataSorteio: data.dataSorteio,
+          metodoSorteio: data.metodoSorteio,
+          status: "ATIVO",
+
+          // Configuração das Cotas Premiadas
+          temCotasPremiadas: data.temCotasPremiadas,
+          quantidadeCotasPremiadas: quantidadeCotas,
+          valorCotaPremiada: valorCota,
+        },
+      });
+
+      // 2. Se a rifa não possui cotas premiadas,
+      // não criar nenhum registro.
+      if (!data.temCotasPremiadas) {
+        return rifa;
+      }
+
+      // 3. Criar a lista completa de números possíveis.
+      //
+      // Exemplo:
+      // quantidadeTotal = 350
+      //
+      // 0 ... 349
+      const numerosDisponiveis = Array.from(
+        { length: data.quantidadeTotal },
+        (_, index) => index
+      );
+
+      // 4. Embaralhamento Fisher-Yates
+      for (let i = numerosDisponiveis.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+
+        [numerosDisponiveis[i], numerosDisponiveis[j]] = [
+          numerosDisponiveis[j],
+          numerosDisponiveis[i],
+        ];
+      }
+
+      // 5. Selecionar somente a quantidade configurada
+      const numerosPremiados = numerosDisponiveis
+        .slice(0, quantidadeCotas)
+        .map((numero) =>
+          numero < 100
+            ? String(numero).padStart(2, "0")
+            : String(numero)
+        );
+
+      // 6. Criar as Cotas Premiadas
+      await tx.cotaPremiada.createMany({
+        data: numerosPremiados.map((numero) => ({
+          rifaId: rifa.id,
+          numero,
+          premio: valorCota,
+          status: "DISPONIVEL",
+        })),
+      });
+
+      return rifa;
     });
   }
 

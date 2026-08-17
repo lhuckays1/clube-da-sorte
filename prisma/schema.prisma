@@ -24,6 +24,9 @@ model Rifa {
   regulamento     String
   valorPorNumero  Float
   quantidadeTotal Int
+  temCotasPremiadas      Boolean @default(false)
+  quantidadeCotasPremiadas Int   @default(0)
+  valorCotaPremiada       Float  @default(0)
   dataSorteio     DateTime?
   status          String          @default("ATIVO")
   metodoSorteio   String          @default("AVULSO")
@@ -31,6 +34,7 @@ model Rifa {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   combos          Combo[]
+  cotasPremiadas  CotaPremiada[]
   ganhadores      Ganhador[]
   imagens         ImagemRifa[]
   itensPedido     ItemPedido[]
@@ -66,36 +70,38 @@ model Combo {
 }
 
 model Comprador {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  telefone  String   @unique
-  cidade    String
-  estado    String
-  cpf       String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  pedidos   Pedido[]
+  id             Int            @id @default(autoincrement())
+  nome           String
+  telefone       String         @unique
+  cidade         String
+  estado         String
+  cpf            String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  cotasPremiadas CotaPremiada[]
+  pedidos        Pedido[]
 
   @@index([telefone])
   @@index([createdAt])
 }
 
 model Pedido {
-  id           Int             @id @default(autoincrement())
-  hash         String          @unique
-  compradorId  Int
-  status       String          @default("PENDENTE")
-  valorTotal   Float
-  pixQrCode    String?
-  pixCopiaCola String?
-  pixTxid      String?
-  gatewayMeta  String?
-  expiracaoPix DateTime
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  itens        ItemPedido[]
-  bilhetes     NumeroBilhete[]
-  comprador    Comprador       @relation(fields: [compradorId], references: [id])
+  id             Int             @id @default(autoincrement())
+  hash           String          @unique
+  compradorId    Int
+  status         String          @default("PENDENTE")
+  valorTotal     Float
+  pixQrCode      String?
+  pixCopiaCola   String?
+  pixTxid        String?
+  gatewayMeta    String?
+  expiracaoPix   DateTime
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  cotasPremiadas CotaPremiada[]
+  itens          ItemPedido[]
+  bilhetes       NumeroBilhete[]
+  comprador      Comprador       @relation(fields: [compradorId], references: [id])
 
   @@index([compradorId])
   @@index([status])
@@ -223,4 +229,25 @@ model NumeroBilhete {
   @@index([pedidoId])
   @@index([rifaId, status])
   @@index([expiraEm, status])
+}
+
+model CotaPremiada {
+  id          Int        @id @default(autoincrement())
+  rifaId      Int
+  numero      String
+  premio      Float
+  status      String     @default("DISPONIVEL")
+  pedidoId    Int?
+  compradorId Int?
+  createdAt   DateTime   @default(now())
+  premiadoEm  DateTime?
+  comprador   Comprador? @relation(fields: [compradorId], references: [id])
+  pedido      Pedido?    @relation(fields: [pedidoId], references: [id])
+  rifa        Rifa       @relation(fields: [rifaId], references: [id], onDelete: Cascade)
+
+  @@unique([rifaId, numero])
+  @@index([rifaId])
+  @@index([rifaId, status])
+  @@index([pedidoId])
+  @@index([compradorId])
 }

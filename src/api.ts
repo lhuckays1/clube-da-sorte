@@ -7,6 +7,7 @@ import { BuyerController } from "./controllers/buyerController";
 import { ConfigController } from "./controllers/configController";
 import { DashboardController } from "./controllers/dashboardController";
 import { UserController } from "./controllers/userController";
+import { CotaPremiadaController } from "./controllers/cotaPremiadaController";
 import { prisma } from "./db";
 
 export const apiRouter = Router();
@@ -118,6 +119,55 @@ apiRouter.delete(
   "/admin/combos/:id",
   authMiddleware,
   RaffleController.deleteCombo
+);
+
+// Cotas Premiadas
+apiRouter.post(
+  "/admin/cotas-premiadas",
+  authMiddleware,
+  CotaPremiadaController.create
+);
+
+apiRouter.get(
+  "/admin/rifas/:rifaId/cotas-premiadas",
+  authMiddleware,
+  CotaPremiadaController.listByRifa
+);
+
+apiRouter.get(
+  "/admin/cotas-premiadas/:id",
+  authMiddleware,
+  CotaPremiadaController.getById
+);
+
+apiRouter.get(
+  "/admin/rifas/:rifaId/cotas-premiadas/numero/:numero",
+  authMiddleware,
+  CotaPremiadaController.getByNumero
+);
+
+apiRouter.get(
+  "/admin/rifas/:rifaId/cotas-premiadas/disponiveis",
+  authMiddleware,
+  CotaPremiadaController.listDisponiveis
+);
+
+apiRouter.put(
+  "/admin/cotas-premiadas/:id/premiar",
+  authMiddleware,
+  CotaPremiadaController.marcarComoPremiada
+);
+
+apiRouter.put(
+  "/admin/cotas-premiadas/:id/cancelar",
+  authMiddleware,
+  CotaPremiadaController.cancelar
+);
+
+apiRouter.delete(
+  "/admin/cotas-premiadas/:id",
+  authMiddleware,
+  CotaPremiadaController.delete
 );
 
 // Orders validation control

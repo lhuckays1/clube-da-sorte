@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { 
   Plus, 
   Trash2, 
@@ -15,7 +15,8 @@ import {
   Layers,
   ChevronDown,
   Loader,
-  Play
+  Play,
+  Eye
 } from "lucide-react";
 
 interface Rifa {
@@ -31,11 +32,45 @@ interface Rifa {
   dataSorteio: string;
   vendidos: number;
   reservados: number;
+  temCotasPremiadas: boolean;
+  quantidadeCotasPremiadas: number;
+  valorCotaPremiada: number;
+}
+
+interface CotaPremiada {
+  id: number;
+  rifaId: number;
+  numero: string;
+  premio: number;
+  status: string;
+  pedidoId: number | null;
+  compradorId: number | null;
+  createdAt: string;
+  premiadoEm: string | null;
+  pedido?: {
+    id: number;
+    hash: string;
+    status: string;
+    valorTotal: number;
+  } | null;
+  comprador?: {
+    id: number;
+    nome: string;
+    telefone?: string;
+    cidade?: string;
+    estado?: string;
+  } | null;
 }
 
 export default function AdminRaffles({ token }: { token: string }) {
   const [rifas, setRifas] = useState<Rifa[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Cotas Premiadas - visualização administrativa
+  const [showCotasPremiadas, setShowCotasPremiadas] = useState(false);
+  const [cotasPremiadasRifa, setCotasPremiadasRifa] = useState<Rifa | null>(null);
+  const [cotasPremiadas, setCotasPremiadas] = useState<CotaPremiada[]>([]);
+  const [loadingCotasPremiadas, setLoadingCotasPremiadas] = useState(false);
 
   // Form states (Create & Update)
   const [showRifaForm, setShowRifaForm] = useState(false);
@@ -49,6 +84,11 @@ export default function AdminRaffles({ token }: { token: string }) {
   const [dataSorteio, setDataSorteio] = useState("");
   const [metodoSorteio, setMetodoSorteio] = useState("AVULSO");
   const [imagensInput, setImagensInput] = useState("");
+
+  // Form states (Cotas Premiadas)
+  const [temCotasPremiadas, setTemCotasPremiadas] = useState(false);
+  const [quantidadeCotasPremiadas, setQuantidadeCotasPremiadas] = useState("1");
+  const [valorCotaPremiada, setValorCotaPremiada] = useState("50.00");
 
   // Form states (Combos)
   const [showComboForm, setShowComboForm] = useState(false);
@@ -85,6 +125,41 @@ export default function AdminRaffles({ token }: { token: string }) {
   useEffect(() => {
     fetchRifas();
   }, []);
+
+  const fetchCotasPremiadas = async (rifa: Rifa) => {
+    setCotasPremiadasRifa(rifa);
+    setCotasPremiadas([]);
+    setShowCotasPremiadas(true);
+    setLoadingCotasPremiadas(true);
+
+    try {
+      const response = await fetch(`/api/admin/rifas/${rifa.id}/cotas-premiadas`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !Array.isArray(data)) {
+        throw new Error(data?.error || "Não foi possível carregar as cotas premiadas.");
+      }
+
+      setCotasPremiadas(data);
+    } catch (err: any) {
+      console.error("Erro ao carregar cotas premiadas:", err);
+      alert(err.message || "Erro ao carregar as cotas premiadas.");
+      setShowCotasPremiadas(false);
+    } finally {
+      setLoadingCotasPremiadas(false);
+    }
+  };
+
+  const closeCotasPremiadas = () => {
+    setShowCotasPremiadas(false);
+    setCotasPremiadasRifa(null);
+    setCotasPremiadas([]);
+  };
 
   const fetchCombos = (rifaId: number) => {
   fetch(`/api/admin/rifas/${rifaId}/combos`, {
@@ -166,10 +241,13 @@ const handleDeleteCombo = async (comboId: number) => {
     setDataSorteio("");
     setMetodoSorteio("AVULSO");
     setImagensInput("");
+    setTemCotasPremiadas(false);
+    setQuantidadeCotasPremiadas("1");
+    setValorCotaPremiada("50.00");
   };
 
   // Submit new or updated raffle
-  const handleSubmitRifa = (e: React.FormEvent) => {
+  const handleSubmitRifa = (e: FormEvent) => {
     e.preventDefault();
     if (!titulo || !valorPorNumero || !quantidadeTotal) return;
 
@@ -182,6 +260,9 @@ const handleDeleteCombo = async (comboId: number) => {
       dataSorteio: dataSorteio || undefined,
       metodoSorteio,
       imagensUrls: imagensInput ? imagensInput.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      temCotasPremiadas,
+      quantidadeCotasPremiadas: temCotasPremiadas ? parseInt(quantidadeCotasPremiadas) : 0,
+      valorCotaPremiada: temCotasPremiadas ? parseFloat(valorCotaPremiada) : 0,
     };
 
     const url = editingRifaId ? `/api/admin/rifas/${editingRifaId}` : "/api/admin/rifas";
@@ -219,6 +300,9 @@ const handleDeleteCombo = async (comboId: number) => {
     setDataSorteio(rifa.dataSorteio ? rifa.dataSorteio.split("T")[0] : "");
     setMetodoSorteio(rifa.metodoSorteio);
     setImagensInput(""); // Keep clean or ignore
+    setTemCotasPremiadas(Boolean(rifa.temCotasPremiadas));
+    setQuantidadeCotasPremiadas(String(rifa.quantidadeCotasPremiadas || 1));
+    setValorCotaPremiada(String(rifa.valorCotaPremiada || 50));
     setShowRifaForm(true);
   };
 
@@ -251,7 +335,7 @@ const handleDeleteCombo = async (comboId: number) => {
   };
 
   // Submit promo Combo setup
-  const handleSubmitCombo = (e: React.FormEvent) => {
+  const handleSubmitCombo = (e: FormEvent) => {
     e.preventDefault();
     if (!comboRifaId || !comboNome || !comboQuantidade || !comboDesconto) return;
 
@@ -299,7 +383,7 @@ const handleDeleteCombo = async (comboId: number) => {
   };
 
   // Trigger Sorteio / Draw
-  const handleExecuteDraw = (e: React.FormEvent) => {
+  const handleExecuteDraw = (e: FormEvent) => {
     e.preventDefault();
     if (!drawRifaId) return;
 
@@ -398,6 +482,11 @@ const handleDeleteCombo = async (comboId: number) => {
                       <div className="space-y-0.5">
                         <strong className="text-slate-800 text-sm">R$ {rifa.valorPorNumero.toFixed(2)}</strong>
                         <span className="text-slate-400 text-[10px] block">{totalCotas.toLocaleString()} bilhetes</span>
+                        {rifa.temCotasPremiadas && (
+                          <span className="text-amber-600 text-[9px] block font-black">
+                            ✨ {rifa.quantidadeCotasPremiadas} cotas premiadas • R$ {rifa.valorCotaPremiada.toFixed(2)}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="py-3 px-4">
@@ -430,6 +519,17 @@ const handleDeleteCombo = async (comboId: number) => {
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
+
+                        {/* Cotas Premiadas */}
+                        {rifa.temCotasPremiadas && (
+                          <button
+                            onClick={() => fetchCotasPremiadas(rifa)}
+                            title="Visualizar Cotas Premiadas"
+                            className="px-2.5 py-1 text-[10px] bg-amber-50 text-amber-700 font-extrabold rounded-lg border border-amber-100 transition hover:bg-amber-100 flex items-center gap-1"
+                          >
+                            <Eye className="w-3 h-3" /> Cotas
+                          </button>
+                        )}
 
                         {/* Duplicate */}
                         <button 
@@ -555,6 +655,98 @@ const handleDeleteCombo = async (comboId: number) => {
 </span>
                 </div>
 
+                {/* COTAS PREMIADAS */}
+                <div className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="temCotasPremiadas"
+                      checked={temCotasPremiadas}
+                      onChange={(e) => {
+                        setTemCotasPremiadas(e.target.checked);
+                        if (!e.target.checked) {
+                          setQuantidadeCotasPremiadas("1");
+                          setValorCotaPremiada("50.00");
+                        }
+                      }}
+                      className="mt-1 accent-amber-500 rounded cursor-pointer size-4"
+                    />
+                    <div className="flex-1">
+                      <label
+                        htmlFor="temCotasPremiadas"
+                        className="block text-xs font-black text-slate-700 uppercase cursor-pointer"
+                      >
+                        Esta rifa terá Cotas Premiadas?
+                      </label>
+                      <p className="text-[10px] text-slate-500 font-semibold mt-1">
+                        Se ativado, o sistema sorteará automaticamente os números premiados dentro da faixa total da rifa.
+                        O administrador não escolhe os números manualmente.
+                      </p>
+                    </div>
+                  </div>
+
+                  {temCotasPremiadas && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-amber-200">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-black text-slate-500 uppercase">
+                          Quantidade de Cotas Premiadas *
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={Math.max(1, parseInt(quantidadeTotal) || 1)}
+                          step="1"
+                          required={temCotasPremiadas}
+                          value={quantidadeCotasPremiadas}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            const max = parseInt(quantidadeTotal) || 1;
+                            const numeric = parseInt(value);
+                            if (value === "") {
+                              setQuantidadeCotasPremiadas("");
+                            } else {
+                              setQuantidadeCotasPremiadas(
+                                String(Math.min(Math.max(1, numeric || 1), max))
+                              );
+                            }
+                          }}
+                          className="w-full bg-white border border-amber-200 p-3 rounded-xl text-xs font-extrabold text-center text-slate-900"
+                        />
+                        <span className="text-[10px] text-slate-400 font-semibold block">
+                          Máximo: {parseInt(quantidadeTotal) || 0} cotas.
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-black text-slate-500 uppercase">
+                          Valor de Cada Cota Premiada (R$) *
+                        </label>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          required={temCotasPremiadas}
+                          value={valorCotaPremiada}
+                          onChange={(e) => setValorCotaPremiada(e.target.value)}
+                          className="w-full bg-white border border-amber-200 p-3 rounded-xl text-xs font-extrabold text-center text-slate-900"
+                        />
+                        <span className="text-[10px] text-slate-400 font-semibold block">
+                          O mesmo valor será aplicado a todas as cotas premiadas.
+                        </span>
+                      </div>
+
+                      <div className="sm:col-span-2 flex items-start gap-2 rounded-xl bg-white/80 border border-amber-100 p-3">
+                        <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-slate-600 font-semibold leading-relaxed">
+                          <strong>Exemplo:</strong> se a rifa tiver 350 números e você configurar 5 cotas premiadas,
+                          o sistema escolherá 5 números diferentes aleatoriamente entre <strong>00 e 349</strong>.
+                          Os números não serão informados nem escolhidos manualmente no cadastro.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-1">
                   <label className="block text-xs font-black text-slate-500 uppercase">Data Prevista do Sorteio</label>
                   <input 
@@ -642,6 +834,232 @@ const handleDeleteCombo = async (comboId: number) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL / DRAWER - COTAS PREMIADAS */}
+      {showCotasPremiadas && cotasPremiadasRifa && (
+        <div className="fixed inset-0 z-50 bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-5 shrink-0">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-black flex items-center gap-2">
+                    <Award className="w-5 h-5" />
+                    Cotas Premiadas
+                  </h3>
+                  <p className="text-amber-50 text-xs font-semibold mt-1">
+                    {cotasPremiadasRifa.titulo} • Rifa #{cotasPremiadasRifa.id}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeCotasPremiadas}
+                  className="text-white/80 hover:text-white text-2xl font-bold leading-none"
+                  title="Fechar"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 overflow-y-auto">
+              {loadingCotasPremiadas ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Loader className="w-7 h-7 animate-spin text-amber-500" />
+                  <span className="text-slate-500 text-xs font-bold">
+                    Carregando cotas premiadas...
+                  </span>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const adquiridas = cotasPremiadas.filter(
+                      (cota) => cota.status === "PREMIADA"
+                    ).length;
+                    const disponiveis = cotasPremiadas.filter(
+                      (cota) => cota.status === "DISPONIVEL"
+                    ).length;
+                    const canceladas = cotasPremiadas.filter(
+                      (cota) => cota.status === "CANCELADA"
+                    ).length;
+                    const totalPremios = cotasPremiadas.reduce(
+                      (total, cota) => total + Number(cota.premio || 0),
+                      0
+                    );
+                    const premiosAdquiridos = cotasPremiadas
+                      .filter((cota) => cota.status === "PREMIADA")
+                      .reduce(
+                        (total, cota) => total + Number(cota.premio || 0),
+                        0
+                      );
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <span className="text-[9px] font-black uppercase text-slate-400">
+                              Total
+                            </span>
+                            <strong className="block text-xl font-black text-slate-800 mt-1">
+                              {cotasPremiadas.length}
+                            </strong>
+                          </div>
+
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                            <span className="text-[9px] font-black uppercase text-emerald-600">
+                              Adquiridas
+                            </span>
+                            <strong className="block text-xl font-black text-emerald-700 mt-1">
+                              {adquiridas}
+                            </strong>
+                          </div>
+
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                            <span className="text-[9px] font-black uppercase text-amber-600">
+                              Disponíveis
+                            </span>
+                            <strong className="block text-xl font-black text-amber-700 mt-1">
+                              {disponiveis}
+                            </strong>
+                          </div>
+
+                          <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                            <span className="text-[9px] font-black uppercase text-indigo-600">
+                              Prêmios pagos
+                            </span>
+                            <strong className="block text-lg font-black text-indigo-700 mt-1">
+                              R$ {premiosAdquiridos.toFixed(2)}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                          <div>
+                            <h4 className="text-sm font-black text-slate-800">
+                              Números premiados
+                            </h4>
+                            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                              Prêmios configurados: R$ {totalPremios.toFixed(2)}
+                              {canceladas > 0 && ` • Canceladas: ${canceladas}`}
+                            </p>
+                          </div>
+
+                          <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
+                            {cotasPremiadas.length} cotas
+                          </span>
+                        </div>
+
+                        {cotasPremiadas.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed border-slate-300 py-10 text-center">
+                            <Award className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                            <p className="text-sm font-bold text-slate-500">
+                              Nenhuma cota premiada cadastrada.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr className="text-[9px] uppercase font-black text-slate-400">
+                                  <th className="px-4 py-3">Número</th>
+                                  <th className="px-4 py-3">Prêmio</th>
+                                  <th className="px-4 py-3">Situação</th>
+                                  <th className="px-4 py-3">Comprador</th>
+                                  <th className="px-4 py-3">Pedido</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {cotasPremiadas.map((cota) => {
+                                  const adquirida = cota.status === "PREMIADA";
+
+                                  return (
+                                    <tr key={cota.id} className="hover:bg-slate-50">
+                                      <td className="px-4 py-3">
+                                        <span className="font-black text-slate-800 text-sm font-mono">
+                                          {cota.numero}
+                                        </span>
+                                      </td>
+
+                                      <td className="px-4 py-3">
+                                        <span className="font-black text-slate-700">
+                                          R$ {Number(cota.premio).toFixed(2)}
+                                        </span>
+                                      </td>
+
+                                      <td className="px-4 py-3">
+                                        <span
+                                          className={`inline-flex items-center gap-1 text-[9px] uppercase font-black px-2.5 py-1 rounded-full border ${
+                                            adquirida
+                                              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                              : cota.status === "CANCELADA"
+                                                ? "bg-red-50 border-red-200 text-red-700"
+                                                : "bg-amber-50 border-amber-200 text-amber-700"
+                                          }`}
+                                        >
+                                          {adquirida ? "✓ Adquirida" : cota.status}
+                                        </span>
+                                      </td>
+
+                                      <td className="px-4 py-3">
+                                        {adquirida && cota.comprador ? (
+                                          <div>
+                                            <div className="font-bold text-slate-700">
+                                              {cota.comprador.nome}
+                                            </div>
+                                            {(cota.comprador.cidade || cota.comprador.estado) && (
+                                              <div className="text-[9px] text-slate-400">
+                                                {[cota.comprador.cidade, cota.comprador.estado]
+                                                  .filter(Boolean)
+                                                  .join(" / ")}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-slate-300">—</span>
+                                        )}
+                                      </td>
+
+                                      <td className="px-4 py-3">
+                                        {adquirida && cota.pedido ? (
+                                          <div>
+                                            <div className="font-mono font-bold text-indigo-600">
+                                              {cota.pedido.hash}
+                                            </div>
+                                            {cota.premiadoEm && (
+                                              <div className="text-[9px] text-slate-400">
+                                                {new Date(cota.premiadoEm).toLocaleString("pt-BR")}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-slate-300">—</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-slate-100 px-5 py-4 flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={closeCotasPremiadas}
+                className="px-5 py-2.5 text-xs font-black text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-100 transition"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

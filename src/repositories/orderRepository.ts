@@ -12,6 +12,14 @@ export class OrderRepository {
           },
         },
         bilhetes: true,
+        cotasPremiadas: {
+          where: {
+            status: "PREMIADA",
+          },
+          orderBy: {
+            numero: "asc",
+          },
+        },
       },
     });
   }
@@ -31,6 +39,14 @@ export class OrderRepository {
           },
         },
         bilhetes: true,
+        cotasPremiadas: {
+          where: {
+            status: "PREMIADA",
+          },
+          orderBy: {
+            numero: "asc",
+          },
+        },
       },
     });
   }
@@ -97,6 +113,14 @@ export class OrderRepository {
             rifa: {
               include: { imagens: true },
             },
+          },
+        },
+        cotasPremiadas: {
+          where: {
+            status: "PREMIADA",
+          },
+          orderBy: {
+            numero: "asc",
           },
         },
       },
@@ -204,23 +228,75 @@ export class OrderRepository {
     return prisma.$transaction(async (tx) => {
       const pedido = await tx.pedido.findUnique({
         where: { id },
-        include: { itens: true },
+        include: {
+          itens: true,
+        },
       });
 
-      if (!pedido) throw new Error("Pedido não encontrado");
-      if (pedido.status === "PAGO") return pedido;
+      if (!pedido) {
+        throw new Error("Pedido não encontrado");
+      }
 
-      // Update Order Status
+      // Pedido já processado.
+      // Isso também protege contra webhook duplicado.
+      if (pedido.status === "PAGO") {
+        return pedido;
+      }
+
+      // 1. Atualiza o pedido para PAGO
       const updatedOrder = await tx.pedido.update({
         where: { id },
-        data: { status: "PAGO" },
+        data: {
+          status: "PAGO",
+        },
       });
 
-      // Update associated ticket statuses to PAGO
+      // 2. Atualiza todos os bilhetes vinculados ao pedido para PAGO
       await tx.numeroBilhete.updateMany({
-        where: { pedidoId: id },
-        data: { status: "PAGO" },
+        where: {
+          pedidoId: id,
+        },
+        data: {
+          status: "PAGO",
+        },
       });
+
+      // 3. Verifica se algum dos números comprados possui Cota Premiada
+      for (const item of pedido.itens) {
+        const numeros = item.numeros
+          .split(",")
+          .map((numero) => numero.trim())
+          .filter(Boolean);
+
+        if (numeros.length === 0) {
+          continue;
+        }
+
+        const cotasPremiadas = await tx.cotaPremiada.findMany({
+          where: {
+            rifaId: item.rifaId,
+            numero: {
+              in: numeros,
+            },
+            status: "DISPONIVEL",
+          },
+        });
+
+        // 4. Marca automaticamente as cotas encontradas como PREMIADA
+        for (const cota of cotasPremiadas) {
+          await tx.cotaPremiada.update({
+            where: {
+              id: cota.id,
+            },
+            data: {
+              status: "PREMIADA",
+              pedidoId: pedido.id,
+              compradorId: pedido.compradorId,
+              premiadoEm: new Date(),
+            },
+          });
+        }
+      }
 
       return updatedOrder;
     });

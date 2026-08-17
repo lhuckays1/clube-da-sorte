@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Rifa"
+ADD COLUMN "quantidadeCotasPremiadas" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "temCotasPremiadas" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "valorCotaPremiada" DOUBLE PRECISION NOT NULL DEFAULT 0;
