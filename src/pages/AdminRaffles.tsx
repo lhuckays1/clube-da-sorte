@@ -1223,7 +1223,7 @@ shadow-sm
                 <select 
                   value={drawMetodo}
                   onChange={(e) => setDrawMetodo(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-extrabold text-center"
+                  className="w-full bg-white text-slate-800 border border-slate-300 p-3 rounded-xl text-sm font-bold text-center shadow-sm outline-none transition-all cursor-pointer hover:border-violet-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100"
                 >
                   <option value="AUTOMATICO">SISTEMA ELETRÔNICO (ALEATORIZAR ENTRE COTAS PAGAS)</option>
                   <option value="MANUAL">MANUAL / LOTERIA FEDERAL (INDICAÇÃO FÍSICA)</option>
@@ -1239,7 +1239,7 @@ shadow-sm
                     placeholder="Ex: 456"
                     value={winnerNumberManual}
                     onChange={(e) => setWinnerNumberManual(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-center font-black text-base focus:border-indigo-600 font-mono tracking-wider outline-hidden"
+                    className="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 p-4 rounded-xl text-lg font-black text-center tracking-[0.2em] shadow-sm outline-none transition-all hover:border-violet-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100"
                   />
                   <span className="text-[10px] text-slate-400 font-semibold block text-center mt-1">O sistema buscará qual comprador adquiriu este número exato de forma oficial!</span>
                 </div>

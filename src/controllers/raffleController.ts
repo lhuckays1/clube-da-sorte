@@ -489,117 +489,358 @@ export class RaffleController {
   }
 
   static async executeDraw(req: Request, res: Response) {
-    try {
-      const id = parseInt(req.params.id);
-      const {
-        numeroVencedorManual,
-        metodo,
-        nomeVencedorSelec,
-        cidadeVencedorSelec,
-        estadoVencedorSelec,
-        fotoPremioUrl,
-        fotoEntregaUrl,
-        depoimento,
-      } = req.body;
+  try {
+    const id = parseInt(req.params.id);
 
-      const rifa = await RaffleRepository.findById(id);
-      if (!rifa) {
-        res.status(404).json({ error: "Rifa não encontrada" });
+    const {
+      numeroVencedorManual,
+      metodo,
+      nomeVencedorSelec,
+      cidadeVencedorSelec,
+      estadoVencedorSelec,
+      fotoPremioUrl,
+      fotoEntregaUrl,
+      depoimento,
+    } = req.body;
+
+    // ==========================================
+    // 1. BUSCAR RIFA
+    // ==========================================
+
+    const rifa = await RaffleRepository.findById(id);
+
+    if (!rifa) {
+      res.status(404).json({
+        error: "Rifa não encontrada",
+      });
+      return;
+    }
+
+    // Segurança: impedir novo sorteio de rifa já finalizada
+    if (rifa.status === "FINALIZADO") {
+      res.status(400).json({
+        error:
+          "Esta rifa já está finalizada. A apuração não pode ser executada novamente.",
+      });
+      return;
+    }
+
+    // ==========================================
+    // 2. BUSCAR NÚMEROS PAGOS
+    // ==========================================
+
+    const numMap = await OrderRepository.getActiveNumbersMap(id);
+
+    const paidTickets: string[] = [];
+
+    numMap.forEach((status, num) => {
+      if (status === "PAGO") {
+        paidTickets.push(num);
+      }
+    });
+
+    if (paidTickets.length === 0) {
+      res.status(400).json({
+        error: "Nenhum número pago foi encontrado nesta rifa.",
+      });
+      return;
+    }
+
+    let winningNumber = "";
+    let resultadoOriginal: string | null = null;
+    let calculoApuracao: string | null = null;
+
+    // ==========================================
+    // 3. SORTEIO AUTOMÁTICO
+    // ==========================================
+
+    if (
+      metodo === "AUTOMATICO" ||
+      rifa.metodoSorteio === "AUTOMATICO"
+    ) {
+      const randIdx = Math.floor(
+        Math.random() * paidTickets.length
+      );
+
+      winningNumber = paidTickets[randIdx];
+
+      calculoApuracao =
+        `Sorteio automático entre ${paidTickets.length} cotas pagas. ` +
+        `Número selecionado: ${winningNumber}`;
+    }
+
+    // ==========================================
+    // 4. APURAÇÃO MANUAL / LOTERIA FEDERAL
+    // ==========================================
+
+    else if (metodo === "MANUAL" || numeroVencedorManual) {
+
+      if (
+        numeroVencedorManual === undefined ||
+        numeroVencedorManual === null ||
+        String(numeroVencedorManual).trim() === ""
+      ) {
+        res.status(400).json({
+          error: "Informe o resultado para realizar a apuração.",
+        });
         return;
       }
 
-      const numMap = await OrderRepository.getActiveNumbersMap(id);
-      const paidTickets: string[] = [];
-      numMap.forEach((status, num) => {
-        if (status === "PAGO") paidTickets.push(num);
+      // Guarda o resultado original informado
+      resultadoOriginal = String(numeroVencedorManual).trim();
+
+      // Remove qualquer caractere que não seja número
+      const resultadoLimpo = resultadoOriginal.replace(/\D/g, "");
+
+      if (!resultadoLimpo) {
+        res.status(400).json({
+          error:
+            "Resultado inválido. Informe apenas números para realizar a apuração.",
+        });
+        return;
+      }
+
+      // Converte para número
+      const resultadoNumerico = Number(resultadoLimpo);
+
+      if (!Number.isSafeInteger(resultadoNumerico)) {
+        res.status(400).json({
+          error:
+            "Resultado inválido ou muito grande para ser processado.",
+        });
+        return;
+      }
+
+      // Quantidade total de números da rifa
+      const quantidadeTotal = Number(rifa.quantidadeTotal);
+
+      if (
+        !Number.isInteger(quantidadeTotal) ||
+        quantidadeTotal <= 0
+      ) {
+        res.status(400).json({
+          error:
+            "A rifa possui uma quantidade total de cotas inválida.",
+        });
+        return;
+      }
+
+      // ==========================================
+      // REGRA DE CONVERSÃO
+      //
+      // Exemplo:
+      // Resultado: 008932
+      // Número: 8932
+      // Total de cotas: 300
+      //
+      // 8932 % 300 = 232
+      // ==========================================
+
+      const numeroConvertido =
+        resultadoNumerico % quantidadeTotal;
+
+      // ==========================================
+      // FORMATA O NÚMERO CONFORME A FAIXA DA RIFA
+      // ==========================================
+      //
+      // Exemplos:
+      // 100 cotas  → 00 até 99     → 2 dígitos
+      // 300 cotas  → 000 até 299   → 3 dígitos
+      // 1.000 cotas → 000 até 999  → 3 dígitos
+      // 10.000 cotas → 0000 até 9999 → 4 dígitos
+      //
+
+      const quantidadeDigitos = String(quantidadeTotal - 1).length;
+
+      winningNumber = String(numeroConvertido).padStart(
+        quantidadeDigitos,
+        "0"
+      );
+
+      calculoApuracao =
+        `${resultadoLimpo} % ${quantidadeTotal} = ${numeroConvertido}`;
+    }
+
+    // ==========================================
+    // 5. MÉTODO INVÁLIDO
+    // ==========================================
+
+    else {
+      res.status(400).json({
+        error:
+          "Forma de sorteio inválida ou nenhum número especificado.",
+      });
+      return;
+    }
+
+    // ==========================================
+    // 6. PROCURAR EXATAMENTE A COTA VENCEDORA
+    // ==========================================
+
+    const bilheteVencedor =
+      await prisma.numeroBilhete.findFirst({
+        where: {
+          rifaId: id,
+          numero: winningNumber,
+          status: "PAGO",
+        },
+        include: {
+          pedido: {
+            include: {
+              comprador: true,
+            },
+          },
+        },
       });
 
-      let winningNumber = "";
+    // ==========================================
+    // 7. SEGURANÇA:
+    // NÃO FINALIZAR SEM GANHADOR
+    // ==========================================
 
-      if (metodo === "AUTOMATICO" || rifa.metodoSorteio === "AUTOMATICO") {
-        if (paidTickets.length === 0) {
-          res.status(400).json({ error: "Nenhum número foi pago nesta rifa para sorteio automático." });
-          return;
-        }
-        const randIdx = Math.floor(Math.random() * paidTickets.length);
-        winningNumber = paidTickets[randIdx];
-      } else if (metodo === "MANUAL" || numeroVencedorManual) {
-        winningNumber = String(numeroVencedorManual || "").trim();
-      } else {
-        res.status(400).json({ error: "Forma de sorteio inválido ou nenhum número especificado." });
-        return;
-      }
+    if (!bilheteVencedor) {
+      res.status(400).json({
+        error:
+          `O número apurado (${winningNumber}) não possui uma cota paga. ` +
+          `A rifa NÃO foi finalizada.`,
+        resultadoOriginal,
+        numeroApurado: winningNumber,
+        calculo: calculoApuracao,
+      });
+      return;
+    }
 
-      // Create primary Sorteio record (from new schema)
-      const sorteioSorteado = await RaffleRepository.createSorteio(id, {
+    // ==========================================
+    // 8. DEFINIR GANHADOR
+    // ==========================================
+
+    const winnerCompradorName =
+      nomeVencedorSelec ||
+      bilheteVencedor.pedido.comprador.nome;
+
+    const winnerCity =
+      cidadeVencedorSelec ||
+      bilheteVencedor.pedido.comprador.cidade;
+
+    const winnerState =
+      estadoVencedorSelec ||
+      bilheteVencedor.pedido.comprador.estado;
+
+    // ==========================================
+    // 9. CRIAR REGISTRO DO SORTEIO
+    // SOMENTE DEPOIS DE VALIDAR O GANHADOR
+    // ==========================================
+
+    const dadosAuditoria = {
+      ...req.body,
+      resultadoOriginal,
+      numeroApurado: winningNumber,
+      calculoApuracao,
+      quantidadeTotal: rifa.quantidadeTotal,
+      regra:
+        metodo === "MANUAL"
+          ? "resultado % quantidadeTotal"
+          : "sorteio automático entre cotas pagas",
+    };
+
+    const sorteioSorteado =
+      await RaffleRepository.createSorteio(id, {
         tituloSorteio: `Sorteio Oficial - ${rifa.titulo}`,
       });
 
-      await RaffleRepository.updateSorteioRealizado(sorteioSorteado.id, winningNumber, JSON.stringify(req.body));
+    await RaffleRepository.updateSorteioRealizado(
+      sorteioSorteado.id,
+      winningNumber,
+      JSON.stringify(dadosAuditoria)
+    );
 
-      let winnerCompradorName = nomeVencedorSelec || "Comprador de Sorteio";
-      let winnerCity = cidadeVencedorSelec || "São Paulo";
-      let winnerState = estadoVencedorSelec || "SP";
+    // ==========================================
+    // 10. ATUALIZAR RIFA
+    // ==========================================
 
-      // Match ticket owner
-      const itemVencedor = await prisma.itemPedido.findFirst({
-        where: {
-          rifaId: id,
-          pedido: { status: "PAGO" },
-          numeros: { contains: winningNumber },
-        },
-        include: {
-          pedido: { include: { comprador: true } },
-        },
-      });
+    await RaffleRepository.update(id, {
+      status: "FINALIZADO",
+      resultado: winningNumber,
+    });
 
-      if (itemVencedor) {
-        const numList = itemVencedor.numeros.split(",").map((n) => n.trim());
-        if (numList.includes(winningNumber)) {
-          winnerCompradorName = itemVencedor.pedido.comprador.nome;
-          winnerCity = itemVencedor.pedido.comprador.cidade;
-          winnerState = itemVencedor.pedido.comprador.estado;
-        }
-      }
+    // ==========================================
+    // 11. CRIAR GANHADOR
+    // ==========================================
 
-      // Update Rifa and Winner fields in Prisma
-      await RaffleRepository.update(id, {
-        status: "FINALIZADO",
-        resultado: winningNumber,
-      });
+    const winnerData = await prisma.ganhador.create({
+      data: {
+        rifaId: id,
+        sorteioId: sorteioSorteado.id,
+        nome: winnerCompradorName,
+        cidade: winnerCity,
+        estado: winnerState,
+        numeroPremiado: winningNumber,
+        fotoPremioUrl:
+          fotoPremioUrl ||
+          "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&w=400&q=80",
+        fotoEntregaUrl: fotoEntregaUrl || "",
+        depoimento:
+          depoimento || "Fiquei muito feliz em ganhar!",
+      },
+    });
 
-      const winnerData = await prisma.ganhador.create({
-        data: {
-          rifaId: id,
-          sorteioId: sorteioSorteado.id,
-          nome: winnerCompradorName,
-          cidade: winnerCity,
-          estado: winnerState,
-          numeroPremiado: winningNumber,
-          fotoPremioUrl: fotoPremioUrl || "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&w=400&q=80",
-          fotoEntregaUrl: fotoEntregaUrl || "",
-          depoimento: depoimento || "Fiquei muito feliz em ganhar!",
-        },
-      });
+    // ==========================================
+    // 12. ATUALIZAR CLIENTES EM TEMPO REAL
+    // ==========================================
 
-      broadcastRaffleStatusUpdate(id, "FINALIZADO");
+    broadcastRaffleStatusUpdate(id, "FINALIZADO");
 
-      // Log action
-      const user = (req as AuthenticatedRequest).user;
-      await AdminLogRepository.create({
-        usuarioId: user?.id,
-        acao: "DRAW_EXECUTION",
-        detalhes: `Sorteio concluído na Rifa: "${rifa.titulo}" (ID: ${id}). Vencedor: ${winningNumber} (${winnerCompradorName})`,
-      });
+    // ==========================================
+    // 13. LOG ADMINISTRATIVO
+    // ==========================================
 
-      res.json({
-        success: true,
-        winningNumber,
-        winner: winnerData,
-        sorteio: sorteioSorteado,
-      });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
+    const user =
+      (req as AuthenticatedRequest).user;
+
+    await AdminLogRepository.create({
+      usuarioId: user?.id,
+      acao: "DRAW_EXECUTION",
+      detalhes:
+        `Sorteio concluído na Rifa: "${rifa.titulo}" ` +
+        `(ID: ${id}). ` +
+        `Resultado informado: ${resultadoOriginal || "AUTOMÁTICO"}. ` +
+        `Número apurado: ${winningNumber}. ` +
+        `Vencedor: ${winnerCompradorName}`,
+    });
+
+    // ==========================================
+    // 14. RETORNO
+    // ==========================================
+
+    res.json({
+      success: true,
+
+      resultadoOriginal,
+
+      winningNumber,
+
+      calculo: calculoApuracao,
+
+      winner: winnerData,
+
+      sorteio: sorteioSorteado,
+
+      mensagem:
+        `Apuração realizada com sucesso. ` +
+        `Número vencedor: ${winningNumber}`,
+    });
+
+  } catch (error: any) {
+    console.error(
+      "Erro ao executar apuração:",
+      error
+    );
+
+    res.status(500).json({
+      error:
+        error.message ||
+        "Erro interno ao realizar a apuração.",
+    });
+  }
   }
 }

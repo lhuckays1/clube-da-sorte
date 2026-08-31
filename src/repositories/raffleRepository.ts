@@ -14,15 +14,20 @@ export class RaffleRepository {
   }
 
   static async listAll(status?: string) {
-    return prisma.rifa.findMany({
-      where: status ? { status } : undefined,
-      include: {
-        imagens: true,
-        combos: true,
+  return prisma.rifa.findMany({
+    where: status ? { status } : undefined,
+    include: {
+      imagens: true,
+      combos: true,
+      ganhadores: {
+        orderBy: {
+          dataSorteio: "desc",
+        },
       },
-      orderBy: { createdAt: "desc" },
-    });
-  }
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
 
   static async create(data: {
     titulo: string;
