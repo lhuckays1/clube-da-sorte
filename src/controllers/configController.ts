@@ -8,6 +8,7 @@ export class ConfigController {
   static async getPublicConfigs(req: Request, res: Response) {
     try {
       const configs = await prisma.configuracao.findMany();
+      const activeGateway = await GatewayRepository.findActive();
       const configMap: Record<string, string> = {};
       configs.forEach((c) => {
         configMap[c.chave] = c.valor;
@@ -25,6 +26,7 @@ export class ConfigController {
         cor_principal: configMap.cor_principal || "#4f46e5",
         cor_secundaria: configMap.cor_secundaria || "#10b981",
         banners: configMap.banners || "[]",
+        gateway_ativo: activeGateway?.nome || configMap.gateway_ativo || "NONE",
       };
 
       res.json(responseObj);

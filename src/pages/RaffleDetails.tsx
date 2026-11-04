@@ -26,6 +26,7 @@ interface Rifa {
   regulamento: string;
   valorPorNumero: number;
   quantidadeTotal: number;
+  permiteSelecaoManual?: boolean;
   status: string;
   dataSorteio: string;
   metodoSorteio: string;
@@ -41,6 +42,8 @@ export default function RaffleDetails() {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState("");
   const [selectedNumbers, setSelectedNumbers] = useState<string[]>([]);
+  const [confirmedAutoQuantity, setConfirmedAutoQuantity] = useState(0);
+  const [activeGateway, setActiveGateway] = useState("");
   const [manualGridPage, setManualGridPage] = useState(0);
   
   // Custom lucky numbers state
@@ -124,6 +127,13 @@ export default function RaffleDetails() {
     };
   }, [id]);
 
+  useEffect(() => {
+    fetch("/api/configuracoes")
+      .then((res) => res.json())
+      .then((data) => setActiveGateway(String(data.gateway_ativo || "").toUpperCase()))
+      .catch(() => setActiveGateway(""));
+  }, []);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4 font-sans text-slate-400">
@@ -205,12 +215,31 @@ const addQuickTicketsCount = (count: number) => {
       alert("Por favor, informe uma quantidade válida de números da sorte.");
       return;
     }
-    addQuickTicketsCount(qty);
-    setCustomLuckyQty("");
+    if (rifa.permiteSelecaoManual === false) {
+      const availableCount = Math.max(0, rifa.quantidadeTotal - Object.keys(takenNumbers).length);
+      if (qty > availableCount) {
+        alert(`Há apenas ${availableCount} números disponíveis nesta rifa.`);
+        return;
+      }
+      setConfirmedAutoQuantity(qty);
+    } else {
+      addQuickTicketsCount(qty);
+      setCustomLuckyQty("");
+    }
   };
 
   // Combo promotion select
   const handleSelectCombo = (qty: number) => {
+  if (rifa.permiteSelecaoManual === false) {
+    const availableCount = Math.max(0, rifa.quantidadeTotal - Object.keys(takenNumbers).length);
+    if (qty > availableCount) {
+      alert(`Há apenas ${availableCount} números disponíveis nesta rifa.`);
+      return;
+    }
+    setConfirmedAutoQuantity(qty);
+    setCustomLuckyQty("");
+    return;
+  }
   const availableNumbers: string[] = [];
 
   for (let i = 0; i < rifa.quantidadeTotal; i++) {
@@ -254,7 +283,8 @@ const addQuickTicketsCount = (count: number) => {
   };
 
   // Cost calculation
-  const totalTicketsCount = selectedNumbers.length;
+  const isManualSelectionEnabled = rifa.permiteSelecaoManual !== false;
+  const totalTicketsCount = isManualSelectionEnabled ? selectedNumbers.length : confirmedAutoQuantity;
   let valorFinal = totalTicketsCount * rifa.valorPorNumero;
 
   // Search matching combo discount
@@ -277,12 +307,17 @@ const addQuickTicketsCount = (count: number) => {
     }
   }
   const discountSaved = originalValue - valorFinal;
+  const asaasMinimumNotMet = activeGateway === "ASAAS" && totalTicketsCount > 0 && Math.round(valorFinal * 100) < 500;
 
   // Handle order post checkout submission
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedNumbers.length === 0) {
+    if (totalTicketsCount === 0) {
       alert("Por favor, selecione ao menos 1 bilhete.");
+      return;
+    }
+    if (asaasMinimumNotMet) {
+      alert("O pedido mínimo para pagamento via Asaas é R$ 5,00. Escolha mais cotas para continuar.");
       return;
     }
     if (!nome || !telefone || !cidade || !estado) {
@@ -300,7 +335,7 @@ const addQuickTicketsCount = (count: number) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         rifaId: rifa.id,
-        numeros: selectedNumbers,
+        ...(isManualSelectionEnabled ? { numeros: selectedNumbers } : { quantidade: confirmedAutoQuantity }),
         nome,
         telefone,
         cidade,
@@ -457,7 +492,19 @@ const addQuickTicketsCount = (count: number) => {
             {[5, 10, 20, 50, 100].map((qty) => (
               <button 
                 key={qty}
-                onClick={() => addQuickTicketsCount(qty)}
+                onClick={() => {
+                  if (isManualSelectionEnabled) {
+                    addQuickTicketsCount(qty);
+                  } else {
+                    const nextQty = (parseInt(customLuckyQty, 10) || 0) + qty;
+                    const availableCount = Math.max(0, rifa.quantidadeTotal - Object.keys(takenNumbers).length);
+                    if (nextQty > availableCount) {
+                      alert(`Há apenas ${availableCount} números disponíveis nesta rifa.`);
+                      return;
+                    }
+                    setCustomLuckyQty(String(nextQty));
+                  }
+                }}
                 className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-805 hover:border-emerald-500 text-slate-200 hover:text-white font-extrabold text-xs py-3 px-4.5 rounded-xl transition duration-150 cursor-pointer uppercase tracking-wider"
               >
                 +{qty} Números
@@ -480,9 +527,14 @@ const addQuickTicketsCount = (count: number) => {
               type="submit"
               className="flex-1 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-black text-xs px-5 py-3 rounded-xl transition flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer"
             >
-              🎰 Adicionar Cotas Aleatórias
+              {isManualSelectionEnabled ? "🎰 Adicionar Cotas Aleatórias" : "Confirmar"}
             </button>
           </form>
+          {asaasMinimumNotMet && (
+            <p role="alert" className="max-w-sm text-xs font-semibold text-amber-300">
+              O pedido mínimo para pagamento via Asaas é R$ 5,00. Escolha mais cotas para continuar.
+            </p>
+          )}
         </div>
       </section>
 
@@ -505,7 +557,7 @@ const addQuickTicketsCount = (count: number) => {
       </section>
 
       {/* MANUAL TICKETS GRID SELECTOR (PAGINATED CHOOSE) */}
-      <section className="space-y-4">
+      {isManualSelectionEnabled && <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <div>
             <h2 className="text-lg font-black text-white font-display">🎯 Seleção Manual de Bilhetes de sua Preferência</h2>
@@ -571,15 +623,15 @@ const addQuickTicketsCount = (count: number) => {
             );
           })}
         </div>
-      </section>
+      </section>}
 
       {/* FLOAT FLOATER BAR FOOTER COST DISPLAY */}
-      {selectedNumbers.length > 0 && (
+      {totalTicketsCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 py-4 px-6 bg-zinc-950/95 text-white backdrop-blur-md shadow-2xl z-40 border-t border-zinc-805 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-center md:text-left space-y-0.5">
             <div className="text-xs font-semibold text-slate-400 flex items-center gap-1.5 justify-center md:justify-start">
               <Ticket className="w-4 h-4 text-emerald-400" />
-              Você selecionou <strong className="text-white font-bold">{selectedNumbers.length} cotas da sorte</strong>
+              Você selecionou <strong className="text-white font-bold">{totalTicketsCount} cotas da sorte</strong>
             </div>
             <div className="text-lg font-black text-emerald-450 text-emerald-400 flex items-center gap-2.5 font-display justify-center md:justify-start">
               R$ {valorFinal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -597,13 +649,23 @@ const addQuickTicketsCount = (count: number) => {
           </div>
           <div className="flex gap-3">
             <button 
-              onClick={() => setSelectedNumbers([])}
+              onClick={() => {
+                setSelectedNumbers([]);
+                setConfirmedAutoQuantity(0);
+                setCustomLuckyQty("");
+              }}
               className="px-4 py-2 border border-zinc-700 hover:border-zinc-550 text-slate-350 hover:text-white font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
             >
               Limpar
             </button>
             <button 
-              onClick={() => setShowCheckout(true)}
+              onClick={() => {
+                if (asaasMinimumNotMet) {
+                  alert("O pedido mínimo para pagamento via Asaas é R$ 5,00. Escolha mais cotas para continuar.");
+                  return;
+                }
+                setShowCheckout(true);
+              }}
               className="bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-black text-xs uppercase tracking-wider px-8 py-3.5 rounded-xl transition duration-150 flex items-center gap-1.5 shadow-lg shadow-emerald-500/10 cursor-pointer"
             >
               Comprar Agora <ChevronRight className="w-4.5 h-4.5" />

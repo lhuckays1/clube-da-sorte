@@ -33,6 +33,7 @@ interface Rifa {
   vendidos: number;
   reservados: number;
   temCotasPremiadas: boolean;
+  permiteSelecaoManual: boolean;
   quantidadeCotasPremiadas: number;
   valorCotaPremiada: number;
 }
@@ -88,6 +89,7 @@ export default function AdminRaffles({ token }: { token: string }) {
 
   // Form states (Cotas Premiadas)
   const [temCotasPremiadas, setTemCotasPremiadas] = useState(false);
+  const [permiteSelecaoManual, setPermiteSelecaoManual] = useState(true);
   const [quantidadeCotasPremiadas, setQuantidadeCotasPremiadas] = useState("1");
   const [valorCotaPremiada, setValorCotaPremiada] = useState("50.00");
 
@@ -250,6 +252,7 @@ const handleDeleteCombo = async (comboId: number) => {
     setMetodoSorteio("AVULSO");
     setImagensInput("");
     setTemCotasPremiadas(false);
+    setPermiteSelecaoManual(true);
     setQuantidadeCotasPremiadas("1");
     setValorCotaPremiada("50.00");
   };
@@ -269,6 +272,7 @@ const handleDeleteCombo = async (comboId: number) => {
       metodoSorteio,
       imagensUrls: imagensInput ? imagensInput.split(",").map((s) => s.trim()).filter(Boolean) : [],
       temCotasPremiadas,
+      permiteSelecaoManual,
       quantidadeCotasPremiadas: temCotasPremiadas ? parseInt(quantidadeCotasPremiadas) : 0,
       valorCotaPremiada: temCotasPremiadas ? parseFloat(valorCotaPremiada) : 0,
     };
@@ -309,6 +313,7 @@ const handleDeleteCombo = async (comboId: number) => {
     setMetodoSorteio(rifa.metodoSorteio);
     setImagensInput(""); // Keep clean or ignore
     setTemCotasPremiadas(Boolean(rifa.temCotasPremiadas));
+    setPermiteSelecaoManual(rifa.permiteSelecaoManual !== false);
     setQuantidadeCotasPremiadas(String(rifa.quantidadeCotasPremiadas || 1));
     setValorCotaPremiada(String(rifa.valorCotaPremiada || 50));
     setShowRifaForm(true);
@@ -661,6 +666,26 @@ const handleDeleteCombo = async (comboId: number) => {
 <span className="text-[10px] text-slate-400 font-semibold">
   Informe qualquer quantidade. Ex: 350, 750, 1500, 5000...
 </span>
+                </div>
+
+                <div className="sm:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="permiteSelecaoManual"
+                      checked={permiteSelecaoManual}
+                      onChange={(e) => setPermiteSelecaoManual(e.target.checked)}
+                      className="mt-1 accent-emerald-500 rounded cursor-pointer size-4"
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="permiteSelecaoManual" className="block text-xs font-black text-slate-700 uppercase cursor-pointer">
+                        Permitir que o cliente escolha os números?
+                      </label>
+                      <p className="text-[10px] text-slate-500 font-semibold mt-1">
+                        Ativado: o cliente pode selecionar números no painel. Desativado: informa a quantidade e o sistema atribui os números disponíveis.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* COTAS PREMIADAS */}

@@ -1,0 +1,2 @@
+ALTER TABLE "Rifa"
+ADD COLUMN "permiteSelecaoManual" BOOLEAN NOT NULL DEFAULT true;

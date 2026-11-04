@@ -25,6 +25,7 @@ model Rifa {
   regulamento     String
   valorPorNumero  Float
   quantidadeTotal Int
+  permiteSelecaoManual Boolean @default(true)
   temCotasPremiadas      Boolean @default(false)
   quantidadeCotasPremiadas Int   @default(0)
   valorCotaPremiada       Float  @default(0)

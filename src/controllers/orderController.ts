@@ -33,7 +33,7 @@ export class OrderController {
       const reservation = await ReservationService.reserve({
         rifaId: parseInt(rifaId),
         numeros,
-        quantidade: quantidade ? parseInt(quantidade) : undefined,
+        quantidade: quantidade !== undefined && quantidade !== null && quantidade !== "" ? Number(quantidade) : undefined,
         nomeComprador: nome,
         telefoneComprador: telefone,
         cidadeComprador: cidade,

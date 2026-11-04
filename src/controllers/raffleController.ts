@@ -136,6 +136,7 @@ export class RaffleController {
         temCotasPremiadas,
         quantidadeCotasPremiadas,
         valorCotaPremiada,
+        permiteSelecaoManual,
       } = req.body;
 
       if (!titulo || !valorPorNumero || !quantidadeTotal) {
@@ -198,6 +199,7 @@ export class RaffleController {
         temCotasPremiadas: temCotasPremiadasNumerico,
         quantidadeCotasPremiadas: quantidadeCotasNumerica,
         valorCotaPremiada: valorCotaNumerico,
+        permiteSelecaoManual: permiteSelecaoManual !== false,
       });
 
       if (Array.isArray(imagensUrls) && imagensUrls.length > 0) {
@@ -234,6 +236,7 @@ export class RaffleController {
         dataSorteio,
         metodoSorteio,
         imagensUrls,
+        permiteSelecaoManual,
       } = req.body;
 
       const updatedRifa = await RaffleRepository.update(id, {
@@ -244,6 +247,7 @@ export class RaffleController {
         status,
         dataSorteio: dataSorteio ? new Date(dataSorteio) : undefined,
         metodoSorteio,
+        permiteSelecaoManual: typeof permiteSelecaoManual === "boolean" ? permiteSelecaoManual : undefined,
       });
 
       if (Array.isArray(imagensUrls)) {
@@ -296,6 +300,7 @@ export class RaffleController {
         temCotasPremiadas: false,
         quantidadeCotasPremiadas: 0,
         valorCotaPremiada: 0,
+        permiteSelecaoManual: sourceRifa.permiteSelecaoManual ?? true,
       });
 
       // Duplicate images

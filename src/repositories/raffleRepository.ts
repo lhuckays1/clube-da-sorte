@@ -37,6 +37,7 @@ export class RaffleRepository {
     regulamento: string;
     valorPorNumero: number;
     quantidadeTotal: number;
+    permiteSelecaoManual: boolean;
     dataSorteio?: Date | null;
     metodoSorteio: string;
 
@@ -80,6 +81,7 @@ export class RaffleRepository {
           regulamento: data.regulamento,
           valorPorNumero: data.valorPorNumero,
           quantidadeTotal: data.quantidadeTotal,
+          permiteSelecaoManual: data.permiteSelecaoManual,
           dataSorteio: data.dataSorteio,
           metodoSorteio: data.metodoSorteio,
           status: "ATIVO",
@@ -145,6 +147,7 @@ export class RaffleRepository {
       regulamento?: string;
       valorPorNumero?: number;
       status?: string;
+      permiteSelecaoManual?: boolean;
       dataSorteio?: Date | null;
       metodoSorteio?: string;
       resultado?: string | null;

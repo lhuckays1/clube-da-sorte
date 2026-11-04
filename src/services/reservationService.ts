@@ -1,6 +1,7 @@
 import { OrderRepository } from "../repositories/orderRepository";
 import { RaffleRepository } from "../repositories/raffleRepository";
 import { BuyerRepository } from "../repositories/buyerRepository";
+import { GatewayRepository } from "../repositories/gatewayRepository";
 import { broadcastTicketUpdate, broadcastPaymentConfirmed } from "../websocket";
 import { prisma } from "../db";
 import { formatTicketNumber } from "../utils/ticketNumber";
@@ -61,6 +62,10 @@ export class ReservationService {
     const takenMap = await OrderRepository.getActiveNumbersMap(rifa.id);
     let resolvedNumbers: string[] = [];
 
+    if (rifa.permiteSelecaoManual === false && Array.isArray(numeros) && numeros.length > 0) {
+      throw new Error("Esta rifa não permite escolher números específicos. Informe apenas a quantidade desejada.");
+    }
+
     if (Array.isArray(numeros) && numeros.length > 0) {
       resolvedNumbers = numeros.map((n) => n.trim());
       if (new Set(resolvedNumbers).size !== resolvedNumbers.length) throw new Error("Há números repetidos na seleção.");
@@ -73,7 +78,7 @@ export class ReservationService {
           throw new Error(`Número inválido para esta rifa: ${num}`);
         }
       }
-    } else if (quantidade && quantidade > 0) {
+    } else if (Number.isInteger(quantidade) && quantidade! > 0) {
       // Auto-assign random available numbers
       const availableNumbers: string[] = [];
       for (let i = 0; i < rifa.quantidadeTotal; i++) {
@@ -83,7 +88,7 @@ export class ReservationService {
         }
       }
 
-      if (availableNumbers.length < quantidade) {
+      if (availableNumbers.length < quantidade!) {
         throw new Error(`Apenas ${availableNumbers.length} números restantes nesta rifa.`);
       }
 
@@ -91,34 +96,10 @@ export class ReservationService {
         const j = randomInt(i + 1);
         [availableNumbers[i], availableNumbers[j]] = [availableNumbers[j], availableNumbers[i]];
       }
-      resolvedNumbers = availableNumbers.slice(0, quantidade);
+      resolvedNumbers = availableNumbers.slice(0, quantidade!);
     } else {
       throw new Error("Selecione algum número ou informe uma quantidade para prosseguir.");
     }
-
-    // Resolve Comprador record
-    let comprador = await BuyerRepository.findByPhone(telefoneComprador);
-    if (!comprador) {
-      comprador = await BuyerRepository.create({
-        nome: nomeComprador,
-        telefone: telefoneComprador,
-        cidade: cidadeComprador,
-        estado: estadoComprador,
-        cpf: cpfComprador,
-      });
-    } else {
-      comprador = await BuyerRepository.update(comprador.id, {
-        nome: nomeComprador,
-        cidade: cidadeComprador,
-        estado: estadoComprador,
-        cpf: cpfComprador || comprador.cpf,
-      });
-    }
-
-    // Load custom dynamic reservation timeframe from config
-    const timeConf = await prisma.configuracao.findUnique({ where: { chave: "tempo_reserva" } });
-    const reserveMinutes = parseInt(timeConf?.valor || "15");
-    const expirationDate = new Date(Date.now() + reserveMinutes * 60 * 1000);
 
     let valorTotal = this.calculatePrice(resolvedNumbers.length, rifa.valorPorNumero, rifa.combos);
 
@@ -142,6 +123,34 @@ export class ReservationService {
         }
       }
     }
+
+    const activeGateway = await GatewayRepository.findActive();
+    if (activeGateway?.nome.toUpperCase() === "ASAAS" && Math.round(valorTotal * 100) < 500) {
+      throw new Error("O pedido mínimo para pagamento via Asaas é R$ 5,00. Escolha mais cotas para continuar.");
+    }
+
+    // Só persiste comprador e reserva depois das validações de valor do gateway.
+    let comprador = await BuyerRepository.findByPhone(telefoneComprador);
+    if (!comprador) {
+      comprador = await BuyerRepository.create({
+        nome: nomeComprador,
+        telefone: telefoneComprador,
+        cidade: cidadeComprador,
+        estado: estadoComprador,
+        cpf: cpfComprador,
+      });
+    } else {
+      comprador = await BuyerRepository.update(comprador.id, {
+        nome: nomeComprador,
+        cidade: cidadeComprador,
+        estado: estadoComprador,
+        cpf: cpfComprador || comprador.cpf,
+      });
+    }
+
+    const timeConf = await prisma.configuracao.findUnique({ where: { chave: "tempo_reserva" } });
+    const reserveMinutes = parseInt(timeConf?.valor || "15");
+    const expirationDate = new Date(Date.now() + reserveMinutes * 60 * 1000);
 
     const orderHash = `PED-${randomBytes(24).toString("hex").toUpperCase()}`;
 
