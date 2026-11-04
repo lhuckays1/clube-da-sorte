@@ -531,7 +531,7 @@ export default function Home() {
               <div className="flex gap-2">
                 <button type="button" onClick={() => setShowTestimonialForm(false)} className="flex-1 rounded-xl border border-zinc-700 px-3 py-2.5 text-sm font-bold text-slate-300">Cancelar</button>
                 <button disabled={submittingTestimonial} type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 py-2.5 text-sm font-extrabold text-neutral-950 disabled:opacity-60">
-                  {submittingTestimonial ? "Enviando..." : "Enviar para revisão"}<Send className="h-4 w-4" />
+                  {submittingTestimonial ? "Enviando..." : "Enviar"}<Send className="h-4 w-4" />
                 </button>
               </div>
             </form>
