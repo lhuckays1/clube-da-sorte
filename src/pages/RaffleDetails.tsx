@@ -317,7 +317,7 @@ const addQuickTicketsCount = (count: number) => {
       return;
     }
     if (asaasMinimumNotMet) {
-      alert("O pedido mínimo para pagamento via Asaas é R$ 5,00. Escolha mais cotas para continuar.");
+      alert("O valor mínimo do pedido é R$ 5,00. Selecione mais cotas para continuar.");
       return;
     }
     if (!nome || !telefone || !cidade || !estado) {
@@ -532,7 +532,7 @@ const addQuickTicketsCount = (count: number) => {
           </form>
           {asaasMinimumNotMet && (
             <p role="alert" className="max-w-sm text-xs font-semibold text-amber-300">
-              O pedido mínimo para pagamento via Asaas é R$ 5,00. Escolha mais cotas para continuar.
+              O valor mínimo do pedido é R$ 5,00. Selecione mais cotas para continuar.
             </p>
           )}
         </div>
@@ -661,7 +661,7 @@ const addQuickTicketsCount = (count: number) => {
             <button 
               onClick={() => {
                 if (asaasMinimumNotMet) {
-                  alert("O pedido mínimo para pagamento via Asaas é R$ 5,00. Escolha mais cotas para continuar.");
+                  alert("O valor mínimo do pedido é R$ 5,00. Selecione mais cotas para continuar.");
                   return;
                 }
                 setShowCheckout(true);

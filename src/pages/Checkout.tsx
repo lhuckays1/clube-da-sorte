@@ -132,7 +132,7 @@ export default function Checkout() {
   const isPago = pedido.status === "PAGO";
   const isCancelado = pedido.status === "CANCELADO";
   const item = pedido.itens?.[0];
-  const listNumeros = item?.numeros.split(",") || [];
+  const listNumeros = item?.numeros.split(",").map((numero) => numero.trim()).filter(Boolean) || [];
 
   return (
     <div id="checkout_wrapper" className="max-w-2xl mx-auto space-y-8 pb-16 font-sans">
@@ -199,13 +199,15 @@ export default function Checkout() {
           </div>
         </div>
 
-        {/* Selected tickets visual representation */}
-        <div className="space-y-2 border-t border-zinc-800/60 pt-4">
-          <span className="block text-[10px] uppercase font-bold text-slate-500">Bilhetes Escolhidos ({pedido.itens?.[0]?.quantidade || 0} nrs)</span>
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {listNumeros.map((num) => (
-              <span 
-                key={num}
+        {/* Keep the long ticket list collapsed so the PIX payment stays within easy reach. */}
+        <details className="border-t border-zinc-800/60 pt-4 group">
+          <summary className="cursor-pointer text-[10px] uppercase font-bold text-slate-400 hover:text-white select-none">
+            Ver bilhetes escolhidos ({pedido.itens?.[0]?.quantidade || 0})
+          </summary>
+          <div className="mt-3 max-h-36 overflow-y-auto flex flex-wrap gap-1.5 pr-1">
+            {listNumeros.map((num, index) => (
+              <span
+                key={`${num}-${index}`}
                 className={`text-xs px-2.5 py-1.5 rounded-lg font-black border tracking-tight ${
                   isPago ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
                   isCancelado ? "bg-[#1B1B22] border-zinc-800 text-slate-500" :
@@ -216,7 +218,7 @@ export default function Checkout() {
               </span>
             ))}
           </div>
-        </div>
+        </details>
 
         <div className="flex justify-between items-center bg-zinc-900/60 p-4 rounded-2xl border border-zinc-800/50 pt-4">
           <span className="text-xs text-slate-400 font-bold">Total Arrecadado:</span>

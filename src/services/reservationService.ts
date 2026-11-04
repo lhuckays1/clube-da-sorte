@@ -126,7 +126,7 @@ export class ReservationService {
 
     const activeGateway = await GatewayRepository.findActive();
     if (activeGateway?.nome.toUpperCase() === "ASAAS" && Math.round(valorTotal * 100) < 500) {
-      throw new Error("O pedido mínimo para pagamento via Asaas é R$ 5,00. Escolha mais cotas para continuar.");
+      throw new Error("O valor mínimo do pedido é R$ 5,00. Selecione mais cotas para continuar.");
     }
 
     // Só persiste comprador e reserva depois das validações de valor do gateway.
