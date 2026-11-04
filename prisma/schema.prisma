@@ -12,7 +12,7 @@ model Usuario {
   email     String     @unique
   senha     String
   nome      String
-  role      String     @default("OPERATOR")
+  role      String     @default("ADMIN")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   logs      LogAdmin[]

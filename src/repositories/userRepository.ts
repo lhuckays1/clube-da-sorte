@@ -46,6 +46,7 @@ export class UserRepository {
         nome: data.nome,
         email: data.email,
         senha: senhaHash,
+        role: "ADMIN",
       },
     });
 
