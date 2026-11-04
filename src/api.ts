@@ -79,9 +79,10 @@ apiRouter.get("/pedidos/ranking", async (req, res) => {
 });
 
 // Unified Webhook for automated payment reconciliation
-apiRouter.post("/webhook/pix", OrderController.handleWebhook);
-apiRouter.post("/webhook/asaas", OrderController.handleWebhook);
-apiRouter.post("/webhook/mercadopago", OrderController.handleMercadoPagoWebhook);
+const webhookLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
+apiRouter.post("/webhook/pix", webhookLimiter, OrderController.handleWebhook);
+apiRouter.post("/webhook/asaas", webhookLimiter, OrderController.handleWebhook);
+apiRouter.post("/webhook/mercadopago", webhookLimiter, OrderController.handleMercadoPagoWebhook);
 
 
 // ==========================================

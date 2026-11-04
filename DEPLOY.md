@@ -14,10 +14,10 @@ Variáveis obrigatórias:
 - `APP_URL=https://clubedasorte.athomoinfotech.com.br`
 - `DATABASE_URL=postgresql://...`
 - `JWT_SECRET` aleatório com pelo menos 32 bytes
-- `ASAAS_WEBHOOK_TOKEN` aleatório com pelo menos 32 caracteres (configurar o mesmo token no webhook Asaas)
+- `ASAAS_WEBHOOK_TOKEN` (opcional, recomendado): token aleatório com pelo menos 32 caracteres, igual ao configurado no webhook Asaas. Sem ele, cada pagamento ainda é confirmado diretamente na API do Asaas.
 - `MERCADO_PAGO_WEBHOOK_SECRET` se Mercado Pago estiver habilitado
 
-Credenciais do provedor também podem ser configuradas no registro de gateway do painel. Não coloque segredos reais neste arquivo do repositório.
+`ASAAS_API_KEY` precisa estar no ambiente ou no registro do gateway para verificar pagamentos. Não coloque segredos reais neste arquivo do repositório.
 
 ## Atualização
 

@@ -214,7 +214,7 @@ static async handleWebhook(req: Request, res: Response) {
     const payment = req.body?.payment;
     const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
     const receivedToken = req.header("asaas-access-token") || "";
-    if (!expectedToken || !receivedToken || !safeEqual(receivedToken, expectedToken)) {
+    if (expectedToken && (!receivedToken || !safeEqual(receivedToken, expectedToken))) {
       return res.status(401).json({ error: "Webhook não autenticado" });
     }
 
