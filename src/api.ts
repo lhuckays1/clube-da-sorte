@@ -27,14 +27,15 @@ apiRouter.post("/pedidos", OrderController.create);
 apiRouter.post("/cupons/validar", rateLimit({ windowMs: 15 * 60 * 1000, limit: 12, standardHeaders: true, legacyHeaders: false }), ConfigController.validateCoupon);
 // This static route must precede /pedidos/:hash, which would otherwise catch "ranking".
 apiRouter.get("/pedidos/ranking", async (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   try {
     const ranking = await prisma.$queryRaw<any[]>`
       SELECT c.id AS "compradorId", c.nome AS "nome", c.cidade AS "cidade", c.estado AS "estado",
-        SUM(it.quantidade)::int AS "bilhetes"
+        COUNT(b.id)::int AS "bilhetes"
       FROM "Pedido" p
       JOIN "Comprador" c ON p."compradorId" = c.id
-      JOIN "ItemPedido" it ON it."pedidoId" = p.id
-      WHERE p.status = 'PAGO'
+      JOIN "NumeroBilhete" b ON b."pedidoId" = p.id
+      WHERE p.status = 'PAGO' AND b.status = 'PAGO'
       GROUP BY c.id, c.nome, c.cidade, c.estado
       ORDER BY "bilhetes" DESC, c.id ASC
       LIMIT 5

@@ -68,6 +68,8 @@ export default function Home() {
 
   // Dynamic ranking from live backend paid orders
   const [ranking, setRanking] = useState<BuyerRank[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(true);
+  const [rankingError, setRankingError] = useState(false);
   const [publicStats, setPublicStats] = useState<PublicStats | null>(null);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [showTestimonialForm, setShowTestimonialForm] = useState(false);
@@ -107,14 +109,15 @@ export default function Home() {
       });
 
     // 3. Fetch buyer ranking
-    fetch("/api/pedidos/ranking")
-      .then((res) => res.json())
+    fetch("/api/pedidos/ranking", { cache: "no-store" })
+      .then((res) => { if (!res.ok) throw new Error("Falha ao buscar ranking"); return res.json(); })
       .then((data) => {
-        if (Array.isArray(data)) {
-          setRanking(data);
-        }
+        if (!Array.isArray(data)) throw new Error("Resposta de ranking inválida");
+        setRanking(data);
+        setRankingError(false);
       })
-      .catch((err) => console.error("Error loading buyer ranking:", err));
+      .catch((err) => { console.error("Error loading buyer ranking:", err); setRankingError(true); })
+      .finally(() => setRankingLoading(false));
 
     fetch("/api/estatisticas-publicas")
       .then((res) => res.ok ? res.json() : null)
@@ -208,10 +211,10 @@ export default function Home() {
             Sua sorte está a um clique no {configs.site_name}
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight font-display">
-            Ações da Sorte com <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-300 to-amber-400">Total Confiabilidade</span>!
+            Ações da Sorte <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-300 to-amber-400">para Você</span>!
           </h1>
           <p className="text-base md:text-lg text-slate-300 font-medium">
-            Rifas 100% legalizadas e apuradas via Loteria Federal. Adquira números da sorte via Pix com aprovação em 2 segundos!
+            Escolha seus números, participe das campanhas e acompanhe os resultados conforme o regulamento. Pagamento via Pix.
           </p>
           
           <div className="flex flex-wrap gap-4 pt-2">
@@ -450,9 +453,13 @@ export default function Home() {
           </div>
 
           <div className="space-y-3 pt-1">
-            {ranking.length === 0 ? (
+            {rankingLoading ? (
+              <p className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center text-sm text-slate-400">Carregando compradores...</p>
+            ) : rankingError ? (
+              <p role="status" className="rounded-2xl border border-dashed border-rose-800 p-6 text-center text-sm text-rose-300">Não foi possível carregar o ranking agora. Tente atualizar a página.</p>
+            ) : ranking.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center text-sm text-slate-400">
-                O ranking será atualizado quando houver compras confirmadas.
+                Ainda não há cotas pagas confirmadas para exibir no ranking.
               </p>
             ) : ranking.map((comprador, index) => (
               <div key={index} className="flex items-center justify-between p-3.5 bg-[#17171E] rounded-2xl border border-zinc-800/40 hover:border-zinc-700/60 transition duration-150">
