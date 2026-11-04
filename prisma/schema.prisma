@@ -102,6 +102,7 @@ model Pedido {
   cotasPremiadas CotaPremiada[]
   itens          ItemPedido[]
   bilhetes       NumeroBilhete[]
+  depoimento     Depoimento?
   comprador      Comprador       @relation(fields: [compradorId], references: [id])
 
   @@index([compradorId])
@@ -251,4 +252,20 @@ model CotaPremiada {
   @@index([rifaId, status])
   @@index([pedidoId])
   @@index([compradorId])
+}
+
+model Depoimento {
+  id           Int      @id @default(autoincrement())
+  pedidoId     Int      @unique
+  nomePublico  String
+  mensagem     String   @db.VarChar(600)
+  avaliacao    Int      @default(5)
+  status       String   @default("PENDENTE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  revisadoEm   DateTime?
+  revisadoPor  Int?
+  pedido       Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
 }

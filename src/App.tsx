@@ -12,7 +12,8 @@ import {
   Menu,
   ChevronRight,
   LogOut,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from "lucide-react";
 
 import Home from "./pages/Home";
@@ -24,12 +25,14 @@ import AdminRaffles from "./pages/AdminRaffles";
 import AdminOrders from "./pages/AdminOrders";
 import AdminUsers from "./pages/AdminUsers";
 import AdminConfig from "./pages/AdminConfig";
+import AdminTestimonials from "./pages/AdminTestimonials";
 import Terms from "./pages/Terms";
 
 function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [token, setToken] = useState(localStorage.getItem("admin_token") || "");
+  const [pendingTestimonials, setPendingTestimonials] = useState(0);
   const [configs, setConfigs] = useState<any>({
     site_name: "Clube da Sorte",
     cor_principal: "#4f46e5",
@@ -47,6 +50,23 @@ function Layout() {
       })
       .catch((err) => console.error("Erro ao carregar configurações gerais:", err));
   }, []);
+
+  useEffect(() => {
+    if (!token) {
+      setPendingTestimonials(0);
+      return;
+    }
+    let active = true;
+    const refreshPendingCount = () => fetch("/api/admin/depoimentos?status=PENDENTE", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => { if (active && Array.isArray(data)) setPendingTestimonials(data.length); })
+      .catch(() => undefined);
+    refreshPendingCount();
+    const timer = window.setInterval(refreshPendingCount, 30_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [token]);
 
   const handleAdminLogout = () => {
     localStorage.removeItem("admin_token");
@@ -115,6 +135,10 @@ function Layout() {
                 <Link to="/admin/pedidos" className="hover:text-emerald-400 transition flex items-center gap-1.5 font-bold">
                   <Users className="w-4 h-4 text-emerald-400" /> Pedidos & Clientes
                 </Link>
+                <Link to="/admin/depoimentos" className="hover:text-emerald-400 transition flex items-center gap-1.5 font-bold">
+                  <MessageSquare className="w-4 h-4 text-emerald-400" /> Depoimentos
+                  {pendingTestimonials > 0 && <span aria-label={`${pendingTestimonials} pendentes`} className="ml-1 min-w-5 rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[10px] leading-none text-white">{pendingTestimonials > 99 ? "99+" : pendingTestimonials}</span>}
+                </Link>
                 <Link
                   to="/admin/users"
                   className="hover:text-emerald-400 transition flex items-center gap-1.5 font-bold"
@@ -152,6 +176,7 @@ function Layout() {
           <Route path="/admin" element={<AdminDashboard token={token} setToken={setToken} />} />
           <Route path="/admin/rifas" element={token ? <AdminRaffles token={token} /> : <AdminDashboard token={token} setToken={setToken} />} />
           <Route path="/admin/pedidos" element={token ? <AdminOrders token={token} /> : <AdminDashboard token={token} setToken={setToken} />} />
+          <Route path="/admin/depoimentos" element={token ? <AdminTestimonials token={token} onPendingCountChange={setPendingTestimonials} /> : <AdminDashboard token={token} setToken={setToken} />} />
           <Route
               path="/admin/users"
               element={

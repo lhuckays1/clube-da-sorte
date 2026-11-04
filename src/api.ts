@@ -8,6 +8,7 @@ import { ConfigController } from "./controllers/configController";
 import { DashboardController } from "./controllers/dashboardController";
 import { UserController } from "./controllers/userController";
 import { CotaPremiadaController } from "./controllers/cotaPremiadaController";
+import { TestimonialController } from "./controllers/testimonialController";
 import { prisma } from "./db";
 import rateLimit from "express-rate-limit";
 
@@ -20,8 +21,49 @@ apiRouter.get("/configuracoes", ConfigController.getPublicConfigs);
 apiRouter.get("/rifas", RaffleController.listPublic);
 apiRouter.get("/rifas/:id", RaffleController.getDetails);
 apiRouter.get("/rifas/:id/numbers", RaffleController.getTakenNumbers);
+apiRouter.get("/depoimentos", TestimonialController.listPublic);
+apiRouter.post("/depoimentos", rateLimit({ windowMs: 60 * 60 * 1000, limit: 3, standardHeaders: true, legacyHeaders: false }), TestimonialController.submit);
 apiRouter.post("/pedidos", OrderController.create);
 apiRouter.post("/cupons/validar", rateLimit({ windowMs: 15 * 60 * 1000, limit: 12, standardHeaders: true, legacyHeaders: false }), ConfigController.validateCoupon);
+// This static route must precede /pedidos/:hash, which would otherwise catch "ranking".
+apiRouter.get("/pedidos/ranking", async (_req, res) => {
+  try {
+    const ranking = await prisma.$queryRaw<any[]>`
+      SELECT c.id AS "compradorId", c.nome AS "nome", c.cidade AS "cidade", c.estado AS "estado",
+        SUM(it.quantidade)::int AS "bilhetes"
+      FROM "Pedido" p
+      JOIN "Comprador" c ON p."compradorId" = c.id
+      JOIN "ItemPedido" it ON it."pedidoId" = p.id
+      WHERE p.status = 'PAGO'
+      GROUP BY c.id, c.nome, c.cidade, c.estado
+      ORDER BY "bilhetes" DESC, c.id ASC
+      LIMIT 5
+    `;
+    res.json(ranking.map((buyer: any) => {
+      const parts = String(buyer.nome || "").trim().split(/\s+/).filter(Boolean);
+      return {
+        nome: parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : parts[0] || "Participante",
+        cidade: buyer.cidade,
+        estado: buyer.estado,
+        bilhetes: Number(buyer.bilhetes || 0),
+      };
+    }));
+  } catch {
+    res.status(500).json({ error: "Não foi possível carregar o ranking" });
+  }
+});
+apiRouter.get("/estatisticas-publicas", async (_req, res) => {
+  try {
+    const [pedidosPagos, cotasConfirmadas, buyers] = await Promise.all([
+      prisma.pedido.count({ where: { status: "PAGO" } }),
+      prisma.numeroBilhete.count({ where: { status: "PAGO" } }),
+      prisma.$queryRaw<Array<{ count: number }>>`SELECT COUNT(DISTINCT "compradorId")::int AS count FROM "Pedido" WHERE status = 'PAGO'`,
+    ]);
+    res.json({ pedidosPagos, cotasConfirmadas, compradoresConfirmados: Number(buyers[0]?.count || 0) });
+  } catch {
+    res.status(500).json({ error: "Não foi possível carregar os números confirmados" });
+  }
+});
 apiRouter.get("/pedidos/:hash", OrderController.getByHash);
 apiRouter.get("/compras", rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true, legacyHeaders: false }), OrderController.searchHistory);
 
@@ -33,46 +75,6 @@ apiRouter.get("/ganhadores", async (req, res) => {
       orderBy: { dataSorteio: "desc" },
     });
     res.json(list);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Dynamic Buyer Ranking calculated from successful paid invoices
-apiRouter.get("/pedidos/ranking", async (req, res) => {
-  try {
-    const ranking = await prisma.$queryRaw<any[]>`
-      SELECT 
-        c.id AS "compradorId",
-        c.nome AS "nome",
-        c.cidade AS "cidade",
-        c.estado AS "estado",
-        SUM(it.quantidade)::int AS "bilhetes"
-      FROM "Pedido" p
-      JOIN "Comprador" c ON p."compradorId" = c.id
-      JOIN "ItemPedido" it ON it."pedidoId" = p.id
-      WHERE p.status = 'PAGO'
-      GROUP BY c.id, c.nome, c.cidade, c.estado
-      ORDER BY "bilhetes" DESC
-      LIMIT 5
-    `;
-
-    const formattedRanking = ranking.map((r: any) => {
-      const nameParts = (r.nome || "").split(" ");
-      let maskedName = nameParts[0];
-      if (nameParts.length > 1) {
-        maskedName += " " + nameParts[1][0] + ".";
-      }
-      
-      return {
-        nome: maskedName,
-        cidade: r.cidade,
-        estado: r.estado,
-        bilhetes: Number(r.bilhetes || 0),
-      };
-    });
-
-    res.json(formattedRanking);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -93,6 +95,8 @@ apiRouter.get("/admin/me", authMiddleware, AuthController.me);
 
 // Statistics and Insights Dashboard
 apiRouter.get("/admin/dashboard", authMiddleware, DashboardController.getStats);
+apiRouter.get("/admin/depoimentos", authMiddleware, TestimonialController.listAdmin);
+apiRouter.patch("/admin/depoimentos/:id", authMiddleware, TestimonialController.review);
 
 // Campaigns management CRUD
 apiRouter.post("/admin/rifas", authMiddleware, RaffleController.create);

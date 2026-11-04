@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
-  PiggyBank
+  Star,
+  Send
 } from "lucide-react";
 
 interface Rifa {
@@ -40,6 +41,20 @@ interface BuyerRank {
   bilhetes: number;
 }
 
+interface PublicStats {
+  pedidosPagos: number;
+  cotasConfirmadas: number;
+  compradoresConfirmados: number;
+}
+
+interface Testimonial {
+  id: number;
+  nomePublico: string;
+  mensagem: string;
+  avaliacao: number;
+  createdAt: string;
+}
+
 export default function Home() {
   const [rifas, setRifas] = useState<Rifa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,13 +64,18 @@ export default function Home() {
     site_name: "Clube da Sorte",
     logo: "",
     banners: "",
-    metrica_participantes_offset: "3485",
-    metrica_ganhadores_offset: "24",
-    metrica_distribuido_offset: "235000",
   });
 
   // Dynamic ranking from live backend paid orders
   const [ranking, setRanking] = useState<BuyerRank[]>([]);
+  const [publicStats, setPublicStats] = useState<PublicStats | null>(null);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [showTestimonialForm, setShowTestimonialForm] = useState(false);
+  const [testimonialOrderCode, setTestimonialOrderCode] = useState("");
+  const [testimonialMessage, setTestimonialMessage] = useState("");
+  const [testimonialRating, setTestimonialRating] = useState(5);
+  const [testimonialFeedback, setTestimonialFeedback] = useState("");
+  const [submittingTestimonial, setSubmittingTestimonial] = useState(false);
 
   // Rotating banner settings
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -95,6 +115,16 @@ export default function Home() {
         }
       })
       .catch((err) => console.error("Error loading buyer ranking:", err));
+
+    fetch("/api/estatisticas-publicas")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data && !data.error) setPublicStats(data); })
+      .catch((err) => console.error("Error loading public stats:", err));
+
+    fetch("/api/depoimentos")
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => { if (Array.isArray(data)) setTestimonials(data); })
+      .catch((err) => console.error("Error loading testimonials:", err));
   }, []);
 
   // Compute fallback / standard banners
@@ -124,37 +154,29 @@ export default function Home() {
   const activeRifas = rifas.filter((r) => r.status === "ATIVO");
   const finishedRifas = rifas.filter((r) => r.status !== "ATIVO");
 
-  // Dynamic system-wide stat counting (DB calculations + Admin offsets)
-  const totalPaidTicketsCount = rifas.reduce((sum, r) => sum + (r.vendidos || 0), 0);
-  const numActiveBuyers = ranking.length;
-
-  const totalParticipantsMetric = parseFloat(configs.metrica_participantes_offset || "0") + numActiveBuyers + (totalPaidTicketsCount > 0 ? Math.round(totalPaidTicketsCount / 4) : 0);
-  const totalWinnersMetric = parseFloat(configs.metrica_ganhadores_offset || "0") + finishedRifas.length;
-  const totalDistributedMetric = parseFloat(configs.metrica_distribuido_offset || "0") + (totalPaidTicketsCount * 4.5);
-
-  // Standard safe fallback top ranking if live DB query is empty (for onboarding)
-  const displayRanking = ranking.length > 0 ? ranking : [
-    { nome: "Carlos Oliveira", cidade: "São Paulo", estado: "SP", bilhetes: 240 },
-    { nome: "Mariana Souza", cidade: "Belo Horizonte", estado: "MG", bilhetes: 195 },
-    { nome: "Ademilson Silveira", cidade: "Curitiba", estado: "PR", bilhetes: 140 },
-    { nome: "Priscila Mendes", cidade: "Salvador", estado: "BA", bilhetes: 110 },
-  ];
-
-  // Testimonials or custom dynamic feedback
-  const depoimentos = [
-    {
-      nome: "Marcos Vinícius T.",
-      cidade: "Sorocaba - SP",
-      comentario: "Excelente plataforma! Comprei 5 bilhetes, acompanhei o sorteio ao vivo e ganhei uma Honda CG 160 Cargo. Confiança total!",
-      foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80",
-    },
-    {
-      nome: "Fernanda Silveira G.",
-      cidade: "Goiânia - GO",
-      comentario: "Sempre compro nas ações. Pix rápido, suporte excelente no WhatsApp e números liberados instantaneamente. Recomendo muito!",
-      foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80",
+  const submitTestimonial = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmittingTestimonial(true);
+    setTestimonialFeedback("");
+    try {
+      const response = await fetch("/api/depoimentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigoPedido: testimonialOrderCode.trim(), mensagem: testimonialMessage.trim(), avaliacao: testimonialRating }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível enviar o depoimento");
+      setTestimonialFeedback(data.message || "Depoimento enviado para revisão.");
+      setTestimonialOrderCode("");
+      setTestimonialMessage("");
+      setTestimonialRating(5);
+      setShowTestimonialForm(false);
+    } catch (error: any) {
+      setTestimonialFeedback(error.message || "Não foi possível enviar o depoimento");
+    } finally {
+      setSubmittingTestimonial(false);
     }
-  ];
+  };
 
   return (
     <div id="home_container" className="space-y-12 font-sans text-slate-200">
@@ -225,44 +247,41 @@ export default function Home() {
         )}
       </section>
 
-      {/* 2. PLATFORM STATISTICS COUNTERS (PUBLIC METRICS) */}
+      {/* 2. CONFIRMED PLATFORM COUNTERS */}
       <section id="statistics_grid" className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Metric 1 */}
         <div className="bg-[#131317] p-6 rounded-2xl border border-zinc-805 shadow-xl flex items-center gap-4.5">
           <div className="p-4 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
             <Users className="w-8 h-8" />
           </div>
           <div>
             <div className="text-2xl font-black text-white font-display">
-              {totalParticipantsMetric.toLocaleString("pt-BR")}
+              {publicStats?.compradoresConfirmados.toLocaleString("pt-BR") ?? "—"}
             </div>
-            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400/80 mt-0.5">Participantes Ativos</div>
+            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400/80 mt-0.5">Compradores confirmados</div>
           </div>
         </div>
 
-        {/* Metric 2 */}
         <div className="bg-[#131317] p-6 rounded-2xl border border-zinc-805 shadow-xl flex items-center gap-4.5">
           <div className="p-4 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
             <Trophy className="w-8 h-8" />
           </div>
           <div>
             <div className="text-2xl font-black text-white font-display">
-              {totalWinnersMetric.toLocaleString("pt-BR")}
+              {publicStats?.cotasConfirmadas.toLocaleString("pt-BR") ?? "—"}
             </div>
-            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400/80 mt-0.5">Ganhadores Premiados</div>
+            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400/80 mt-0.5">Cotas pagas</div>
           </div>
         </div>
 
-        {/* Metric 3 */}
         <div className="bg-[#131317] p-6 rounded-2xl border border-zinc-805 shadow-xl flex items-center gap-4.5">
-          <div className="p-4 rounded-xl bg-emerald-500/10 text-emerald-450 text-emerald-400 flex items-center justify-center">
-            <PiggyBank className="w-8 h-8" />
+          <div className="p-4 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+            <Ticket className="w-8 h-8" />
           </div>
           <div>
             <div className="text-2xl font-black text-white font-display">
-              R$ {totalDistributedMetric.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              {publicStats?.pedidosPagos.toLocaleString("pt-BR") ?? "—"}
             </div>
-            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400/80 mt-0.5">Prêmios Distribuídos</div>
+            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400/80 mt-0.5">Pedidos pagos</div>
           </div>
         </div>
       </section>
@@ -426,12 +445,16 @@ export default function Home() {
             </div>
             <div>
               <h2 className="text-lg font-black text-white font-display">🏆 Ranking de Compradores</h2>
-              <p className="text-slate-400 text-xs font-semibold">Os maiores apoiadores e compradores ativos da semana</p>
+              <p className="text-slate-400 text-xs font-semibold">Ordenado pelas cotas de pedidos pagos</p>
             </div>
           </div>
 
           <div className="space-y-3 pt-1">
-            {displayRanking.map((comprador, index) => (
+            {ranking.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center text-sm text-slate-400">
+                O ranking será atualizado quando houver compras confirmadas.
+              </p>
+            ) : ranking.map((comprador, index) => (
               <div key={index} className="flex items-center justify-between p-3.5 bg-[#17171E] rounded-2xl border border-zinc-800/40 hover:border-zinc-700/60 transition duration-150">
                 <div className="flex items-center gap-3 bg-transparent">
                   <div className={`w-8 h-8 font-black text-xs rounded-xl flex items-center justify-center ${
@@ -456,37 +479,63 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Happy Customer review space */}
+        {/* Verified buyer testimonials */}
         <div className="bg-[#131317] border border-zinc-805 p-6 rounded-3xl shadow-xl flex flex-col justify-between space-y-6">
           <div className="flex items-center gap-3 bg-transparent">
             <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
               <MessageSquare className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white font-display">💬 Depoimentos de Ganhadores</h2>
-              <p className="text-slate-400 text-xs font-semibold">Quem realizou o sonho com no Clube da Sorte</p>
+              <h2 className="text-lg font-black text-white font-display">💬 Depoimentos de compradores</h2>
+              <p className="text-slate-400 text-xs font-semibold">Relatos enviados por compradores com pagamento confirmado</p>
             </div>
           </div>
 
           <div className="space-y-5 flex-1 flex flex-col justify-center">
-            {depoimentos.map((depo, idx) => (
-              <div key={idx} className="space-y-2 border-b border-zinc-800/40 pb-4 last:border-0 last:pb-0">
-                <div className="flex items-center gap-3 bg-transparent">
-                  <img src={depo.foto} alt={depo.nome} className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-500/20" />
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-100 leading-none">{depo.nome}</h4>
-                    <span className="text-[10px] font-bold text-slate-500">{depo.cidade}</span>
-                  </div>
-                  <div className="ml-auto flex text-amber-500 justify-end gap-0.5">
-                    {"★".repeat(5)}
-                  </div>
+            {testimonials.length === 0 ? (
+              <p className="py-4 text-center text-sm text-slate-400">Ainda não há depoimentos aprovados. Os comentários aparecem aqui após a revisão.</p>
+            ) : testimonials.map((testimonial) => (
+              <article key={testimonial.id} className="space-y-3 border-b border-zinc-800/40 pb-4 last:border-0 last:pb-0">
+                <div className="flex items-center gap-1 text-amber-400" aria-label={`${testimonial.avaliacao} de 5 estrelas`}>
+                  {Array.from({ length: testimonial.avaliacao }, (_, index) => <Star key={index} className="h-4 w-4 fill-current" />)}
                 </div>
-                <p className="text-xs text-slate-400 italic font-semibold leading-relaxed pl-13">
-                  "{depo.comentario}"
-                </p>
-              </div>
+                <p className="text-sm text-slate-300 leading-relaxed">“{testimonial.mensagem}”</p>
+                <p className="text-xs font-bold text-slate-400">{testimonial.nomePublico} · compra confirmada</p>
+              </article>
             ))}
           </div>
+
+          {testimonialFeedback && <p role="status" className="text-sm text-emerald-300">{testimonialFeedback}</p>}
+          {!showTestimonialForm ? (
+            <button type="button" onClick={() => { setTestimonialFeedback(""); setShowTestimonialForm(true); }} className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-extrabold text-emerald-300 hover:bg-emerald-500/20">
+              Enviar meu depoimento
+            </button>
+          ) : (
+            <form onSubmit={submitTestimonial} className="space-y-3 rounded-2xl border border-zinc-800 bg-[#17171E] p-4">
+              <label className="block space-y-1 text-xs font-bold text-slate-300">
+                Código do pedido pago
+                <input required maxLength={52} value={testimonialOrderCode} onChange={(event) => setTestimonialOrderCode(event.target.value.toUpperCase())} placeholder="PED-..." className="w-full rounded-lg border border-zinc-700 bg-[#111116] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500" />
+              </label>
+              <label className="block space-y-1 text-xs font-bold text-slate-300">
+                Seu comentário
+                <textarea required minLength={10} maxLength={600} rows={3} value={testimonialMessage} onChange={(event) => setTestimonialMessage(event.target.value)} placeholder="Conte como foi sua experiência..." className="w-full resize-y rounded-lg border border-zinc-700 bg-[#111116] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500" />
+                <span className="font-medium text-slate-500">{testimonialMessage.length}/600</span>
+              </label>
+              <label className="block space-y-1 text-xs font-bold text-slate-300">
+                Avaliação
+                <select value={testimonialRating} onChange={(event) => setTestimonialRating(Number(event.target.value))} className="w-full rounded-lg border border-zinc-700 bg-[#111116] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500">
+                  {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} {rating === 1 ? "estrela" : "estrelas"}</option>)}
+                </select>
+              </label>
+              <p className="text-xs text-slate-500">O código confirma uma compra paga. Seu nome será exibido parcialmente e o comentário só aparecerá após aprovação.</p>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setShowTestimonialForm(false)} className="flex-1 rounded-xl border border-zinc-700 px-3 py-2.5 text-sm font-bold text-slate-300">Cancelar</button>
+                <button disabled={submittingTestimonial} type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 py-2.5 text-sm font-extrabold text-neutral-950 disabled:opacity-60">
+                  {submittingTestimonial ? "Enviando..." : "Enviar para revisão"}<Send className="h-4 w-4" />
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </section>
 
