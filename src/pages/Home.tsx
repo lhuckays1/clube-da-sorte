@@ -24,6 +24,7 @@ interface Rifa {
   descricao: string;
   valorPorNumero: number;
   quantidadeTotal: number;
+  permiteSelecaoManual?: boolean;
   status: string;
   dataSorteio: string;
   vendidos: number;
@@ -354,7 +355,9 @@ export default function Home() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs font-bold">
                         <span className="text-emerald-400 font-black">{percentualFormatado}% vendido</span>
-                        <span className="text-slate-400">{total.toLocaleString()} Números</span>
+                        {rifa.permiteSelecaoManual !== false && (
+                          <span className="text-slate-400">{total.toLocaleString()} Números</span>
+                        )}
                       </div>
                       <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-800/30">
                         <div 
@@ -363,7 +366,9 @@ export default function Home() {
                         ></div>
                       </div>
                       <div className="flex justify-between items-center text-xs font-semibold text-slate-400 pt-1">
-                        <span>Livre: {(total - vendidos).toLocaleString()}</span>
+                        {rifa.permiteSelecaoManual !== false && (
+                          <span>Livre: {(total - vendidos).toLocaleString()}</span>
+                        )}
                         <span>Apuração: {rifa.dataSorteio ? new Date(rifa.dataSorteio).toLocaleDateString("pt-BR") : "Nas próximas semanas"}</span>
                       </div>
                     </div>
