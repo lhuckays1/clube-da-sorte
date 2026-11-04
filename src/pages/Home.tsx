@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { 
   Trophy, 
-  Sparkles, 
   CheckCircle, 
   Ticket, 
   Users, 
@@ -215,8 +214,7 @@ export default function Home() {
 
         {/* Content Block */}
         <div className="relative z-10 max-w-2xl space-y-6">
-          <div className="inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider backdrop-blur-xs border border-emerald-500/20">
-            <Sparkles className="w-4 h-4 text-emerald-400" />
+          <div className="inline-flex items-center bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider backdrop-blur-xs border border-emerald-500/20">
             Sua sorte está a um clique no {configs.site_name}
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight font-display">
