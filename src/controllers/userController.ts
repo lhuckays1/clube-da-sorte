@@ -87,6 +87,10 @@ export class UserController {
         });
       }
 
+      if (usuario.role === "SUPER_ADMIN" && (req as AuthenticatedRequest).user?.role !== "SUPER_ADMIN") {
+        return res.status(403).json({ error: "Somente o super administrador pode alterar esta conta." });
+      }
+
       const atualizado = await UserRepository.update(id, {
         nome,
         email,
@@ -119,6 +123,14 @@ export class UserController {
       const id = parseInt(req.params.id);
 
       const { senha } = req.body;
+
+      const usuario = await UserRepository.findById(id);
+      if (!usuario) {
+        return res.status(404).json({ error: "Usuário não encontrado." });
+      }
+      if (usuario.role === "SUPER_ADMIN" && (req as AuthenticatedRequest).user?.role !== "SUPER_ADMIN") {
+        return res.status(403).json({ error: "Somente o super administrador pode alterar a senha desta conta." });
+      }
 
       if (!senha || String(senha).length < 12) {
         return res.status(400).json({
@@ -170,6 +182,10 @@ export class UserController {
         return res.status(404).json({
           error: "Usuário não encontrado.",
         });
+      }
+
+      if (usuario.role === "SUPER_ADMIN" && user?.role !== "SUPER_ADMIN") {
+        return res.status(403).json({ error: "Somente o super administrador pode excluir esta conta." });
       }
 
       await UserRepository.delete(id);

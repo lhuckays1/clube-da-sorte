@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authMiddleware } from "./middlewares/authMiddleware";
+import { authMiddleware, superAdminMiddleware } from "./middlewares/authMiddleware";
 import { AuthController } from "./controllers/authController";
 import { RaffleController } from "./controllers/raffleController";
 import { OrderController } from "./controllers/orderController";
@@ -136,6 +136,7 @@ apiRouter.delete(
 apiRouter.post(
   "/admin/cotas-premiadas",
   authMiddleware,
+  superAdminMiddleware,
   CotaPremiadaController.create
 );
 
@@ -154,6 +155,7 @@ apiRouter.get(
 apiRouter.get(
   "/admin/rifas/:rifaId/cotas-premiadas/numero/:numero",
   authMiddleware,
+  superAdminMiddleware,
   CotaPremiadaController.getByNumero
 );
 
@@ -237,7 +239,7 @@ apiRouter.get("/admin/gateways", authMiddleware, ConfigController.listGateways);
 apiRouter.post("/admin/gateways", authMiddleware, ConfigController.configureGateway);
 
 // Audit Administrative Logs Tracking
-apiRouter.get("/admin/logs", authMiddleware, ConfigController.getAdminLogs);
+apiRouter.get("/admin/logs", authMiddleware, superAdminMiddleware, ConfigController.getAdminLogs);
 
 // Custom Winners management back-channels
 apiRouter.post("/admin/ganhadores", authMiddleware, async (req, res) => {

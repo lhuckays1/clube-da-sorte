@@ -112,7 +112,42 @@ export class OrderController {
       const search = req.query.search ? String(req.query.search).trim() : undefined;
 
       const items = await OrderRepository.listAll({ status, search });
-      res.json(items);
+      if ((req as AuthenticatedRequest).user?.role === "SUPER_ADMIN" || items.length === 0) {
+        return res.json(items);
+      }
+
+      const premiadas = await prisma.cotaPremiada.findMany({
+        where: { pedidoId: { in: items.map((order) => order.id) }, status: "PREMIADA" },
+        select: { pedidoId: true, rifaId: true, numero: true },
+      });
+      const numerosPremiadosPorPedido = new Map<number, Map<number, Set<string>>>();
+      const normalizarNumero = (numero: string) => /^\d+$/.test(numero.trim()) ? String(Number(numero.trim())) : numero.trim();
+      for (const cota of premiadas) {
+        if (cota.pedidoId === null) continue;
+        if (!numerosPremiadosPorPedido.has(cota.pedidoId)) numerosPremiadosPorPedido.set(cota.pedidoId, new Map());
+        const porRifa = numerosPremiadosPorPedido.get(cota.pedidoId)!;
+        if (!porRifa.has(cota.rifaId)) porRifa.set(cota.rifaId, new Set());
+        porRifa.get(cota.rifaId)!.add(normalizarNumero(cota.numero));
+      }
+
+      return res.json(items.map((order) => {
+        const numerosPorRifa = numerosPremiadosPorPedido.get(order.id);
+        if (!numerosPorRifa) return order;
+        return {
+          ...order,
+          itens: order.itens.map((item) => {
+            const numerosPremiados = numerosPorRifa.get(item.rifaId);
+            if (!numerosPremiados) return item;
+            return {
+              ...item,
+              numeros: item.numeros.split(",").map((numero) => {
+                const numeroLimpo = numero.trim();
+                return numerosPremiados.has(normalizarNumero(numeroLimpo)) ? "COTA PREMIADA" : numeroLimpo;
+              }).join(", "),
+            };
+          }),
+        };
+      }));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

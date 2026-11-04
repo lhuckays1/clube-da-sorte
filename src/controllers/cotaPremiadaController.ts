@@ -6,6 +6,16 @@ import { AuthenticatedRequest } from "../middlewares/authMiddleware";
 import { prisma } from "../db";
 import { formatTicketNumber } from "../utils/ticketNumber";
 
+function cotaParaAdmin(req: Request, cota: any) {
+  if ((req as AuthenticatedRequest).user?.role === "SUPER_ADMIN" || !cota) return cota;
+  const { numero: _numeroPrivado, ...dadosVisiveis } = cota;
+  return dadosVisiveis;
+}
+
+function cotasParaAdmin(req: Request, cotas: any[]) {
+  return cotas.map((cota) => cotaParaAdmin(req, cota));
+}
+
 export class CotaPremiadaController {
   static async create(req: Request, res: Response) {
     try {
@@ -80,7 +90,7 @@ export class CotaPremiadaController {
         await AdminLogRepository.create({
         usuarioId: user?.id,
         acao: "CREATE_COTA_PREMIADA",
-        detalhes: `Cota premiada cadastrada: "${numeroFormatado}" na Rifa ID: ${rifaId}. Prêmio: R$ ${premioNumerico.toFixed(2)}`,
+        detalhes: `Cota premiada cadastrada na Rifa ID: ${rifaId}. Prêmio: R$ ${premioNumerico.toFixed(2)}`,
         });
 
         res.status(201).json(cota);
@@ -113,7 +123,7 @@ export class CotaPremiadaController {
 
       const cotas = await CotaPremiadaRepository.listByRifa(rifaId);
 
-      res.json(cotas);
+        res.json(cotasParaAdmin(req, cotas));
     } catch (error: any) {
       res.status(500).json({
         error: error.message,
@@ -141,7 +151,7 @@ export class CotaPremiadaController {
         return;
       }
 
-      res.json(cota);
+      res.json(cotaParaAdmin(req, cota));
     } catch (error: any) {
       res.status(500).json({
         error: error.message,
@@ -176,7 +186,7 @@ export class CotaPremiadaController {
 
       res.json({
         premiada: true,
-        cota,
+        cota: cotaParaAdmin(req, cota),
       });
     } catch (error: any) {
       res.status(500).json({
@@ -198,7 +208,7 @@ export class CotaPremiadaController {
 
       const cotas = await CotaPremiadaRepository.listDisponiveis(rifaId);
 
-      res.json(cotas);
+      res.json(cotasParaAdmin(req, cotas));
     } catch (error: any) {
       res.status(500).json({
         error: error.message,
@@ -312,7 +322,7 @@ export class CotaPremiadaController {
 
         if (!numeroFoiComprado) {
         res.status(400).json({
-            error: `O pedido não contém o número ${cota.numero}`,
+            error: "O pedido informado não contém a cota premiada",
         });
         return;
         }
@@ -330,10 +340,10 @@ export class CotaPremiadaController {
         await AdminLogRepository.create({
         usuarioId: user?.id,
         acao: "MARK_COTA_PREMIADA",
-        detalhes: `Cota premiada ID ${id} marcada como premiada. Número: ${cota.numero}, Rifa: ${cota.rifaId}, Pedido: ${pedidoIdNumerico}, Comprador: ${compradorIdNumerico}`,
+        detalhes: `Cota premiada ID ${id} marcada como premiada. Rifa: ${cota.rifaId}, Pedido: ${pedidoIdNumerico}, Comprador: ${compradorIdNumerico}`,
         });
 
-        res.json(updated);
+        res.json(cotaParaAdmin(req, updated));
     } catch (error: any) {
         res.status(500).json({
         error: error.message,
@@ -378,7 +388,7 @@ export class CotaPremiadaController {
         detalhes: `Cota premiada ID ${id} cancelada`,
       });
 
-      res.json(updated);
+      res.json(cotaParaAdmin(req, updated));
     } catch (error: any) {
       res.status(500).json({
         error: error.message,
@@ -420,7 +430,7 @@ export class CotaPremiadaController {
       await AdminLogRepository.create({
         usuarioId: user?.id,
         acao: "DELETE_COTA_PREMIADA",
-        detalhes: `Cota premiada removida: "${cota.numero}" (ID: ${id})`,
+        detalhes: `Cota premiada removida (ID: ${id})`,
       });
 
       res.json({

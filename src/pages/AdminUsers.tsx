@@ -20,6 +20,7 @@ interface Usuario {
   email: string;
   createdAt: string;
   updatedAt: string;
+  role: string;
 }
 
 export default function AdminUsers({ token }: { token: string }) {
@@ -410,6 +411,11 @@ export default function AdminUsers({ token }: { token: string }) {
                     <span className="font-black text-slate-800">
                       {usuario.nome}
                     </span>
+                    {usuario.role === "SUPER_ADMIN" && (
+                      <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-indigo-700">
+                        Super admin
+                      </span>
+                    )}
 
                   </div>
 

@@ -47,7 +47,7 @@ export async function authMiddleware(
 
     const user = await prisma.usuario.findUnique({ where: { id: decoded.id }, select: { id: true, email: true, nome: true, role: true } });
     if (!user) return res.status(401).json({ error: "Usuário não está mais ativo" });
-    if (user.role !== "ADMIN") return res.status(403).json({ error: "Acesso restrito a administradores" });
+    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") return res.status(403).json({ error: "Acesso restrito a administradores" });
     (req as AuthenticatedRequest).user = user;
     return next();
   } catch {
@@ -55,4 +55,15 @@ export async function authMiddleware(
       error: "Token inválido ou expirado",
     });
   }
+}
+
+export function superAdminMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if ((req as AuthenticatedRequest).user?.role !== "SUPER_ADMIN") {
+    return res.status(403).json({ error: "Ação restrita ao super administrador" });
+  }
+  return next();
 }

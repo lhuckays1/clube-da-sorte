@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 14116)
+Total output lines: 1284
+
 import { useState, useEffect, type FormEvent } from "react";
 import { 
   Plus, 
@@ -40,7 +43,7 @@ interface Rifa {
 interface CotaPremiada {
   id: number;
   rifaId: number;
-  numero: string;
+  numero?: string;
   premio: number;
   status: string;
   pedidoId: number | null;
@@ -65,6 +68,7 @@ interface CotaPremiada {
 export default function AdminRaffles({ token }: { token: string }) {
   const [rifas, setRifas] = useState<Rifa[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Cotas Premiadas - visualização administrativa
   const [showCotasPremiadas, setShowCotasPremiadas] = useState(false);
@@ -125,6 +129,13 @@ export default function AdminRaffles({ token }: { token: string }) {
   useEffect(() => {
     fetchRifas();
   }, []);
+
+  useEffect(() => {
+    fetch("/api/admin/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => setIsSuperAdmin(data?.user?.role === "SUPER_ADMIN"))
+      .catch(() => setIsSuperAdmin(false));
+  }, [token]);
 
   const fetchCotasPremiadas = async (rifa: Rifa) => {
     setCotasPremiadasRifa(rifa);
@@ -647,162 +658,7 @@ const handleDeleteCombo = async (comboId: number) => {
   placeholder="Ex: 350"
   value={quantidadeTotal}
   onChange={(e) => setQuantidadeTotal(e.target.value)}
-  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-extrabold text-center text-slate-900"
-/>
-
-<span className="text-[10px] text-slate-400 font-semibold">
-  Informe qualquer quantidade. Ex: 350, 750, 1500, 5000...
-</span>
-                </div>
-
-                {/* COTAS PREMIADAS */}
-                <div className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      id="temCotasPremiadas"
-                      checked={temCotasPremiadas}
-                      onChange={(e) => {
-                        setTemCotasPremiadas(e.target.checked);
-                        if (!e.target.checked) {
-                          setQuantidadeCotasPremiadas("1");
-                          setValorCotaPremiada("50.00");
-                        }
-                      }}
-                      className="mt-1 accent-amber-500 rounded cursor-pointer size-4"
-                    />
-                    <div className="flex-1">
-                      <label
-                        htmlFor="temCotasPremiadas"
-                        className="block text-xs font-black text-slate-700 uppercase cursor-pointer"
-                      >
-                        Esta rifa terá Cotas Premiadas?
-                      </label>
-                      <p className="text-[10px] text-slate-500 font-semibold mt-1">
-                        Se ativado, o sistema sorteará automaticamente os números premiados dentro da faixa total da rifa.
-                        O administrador não escolhe os números manualmente.
-                      </p>
-                    </div>
-                  </div>
-
-                  {temCotasPremiadas && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-amber-200">
-                      <div className="space-y-1">
-                        <label className="block text-xs font-black text-slate-500 uppercase">
-                          Quantidade de Cotas Premiadas *
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max={Math.max(1, parseInt(quantidadeTotal) || 1)}
-                          step="1"
-                          required={temCotasPremiadas}
-                          value={quantidadeCotasPremiadas}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            const max = parseInt(quantidadeTotal) || 1;
-                            const numeric = parseInt(value);
-                            if (value === "") {
-                              setQuantidadeCotasPremiadas("");
-                            } else {
-                              setQuantidadeCotasPremiadas(
-                                String(Math.min(Math.max(1, numeric || 1), max))
-                              );
-                            }
-                          }}
-                          className="w-full bg-white border border-amber-200 p-3 rounded-xl text-xs font-extrabold text-center text-slate-900"
-                        />
-                        <span className="text-[10px] text-slate-400 font-semibold block">
-                          Máximo: {parseInt(quantidadeTotal) || 0} cotas.
-                        </span>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-xs font-black text-slate-500 uppercase">
-                          Valor de Cada Cota Premiada (R$) *
-                        </label>
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          required={temCotasPremiadas}
-                          value={valorCotaPremiada}
-                          onChange={(e) => setValorCotaPremiada(e.target.value)}
-                          className="w-full bg-white border border-amber-200 p-3 rounded-xl text-xs font-extrabold text-center text-slate-900"
-                        />
-                        <span className="text-[10px] text-slate-400 font-semibold block">
-                          O mesmo valor será aplicado a todas as cotas premiadas.
-                        </span>
-                      </div>
-
-                      <div className="sm:col-span-2 flex items-start gap-2 rounded-xl bg-white/80 border border-amber-100 p-3">
-                        <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-slate-600 font-semibold leading-relaxed">
-                          <strong>Exemplo:</strong> se a rifa tiver 350 números e você configurar 5 cotas premiadas,
-                          o sistema escolherá 5 números diferentes aleatoriamente entre <strong>00 e 349</strong>.
-                          Os números não serão informados nem escolhidos manualmente no cadastro.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-black text-slate-500 uppercase">Data Prevista do Sorteio</label>
-                  <input 
-                    type="date" 
-                    value={dataSorteio}
-                    onChange={(e) => setDataSorteio(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-slate-900"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-black text-slate-500 uppercase">Método Padrão de Sorteio</label>
-                  <select 
-                    value={metodoSorteio}
-                    onChange={(e) => setMetodoSorteio(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-extrabold text-center text-slate-900"
-                  >
-                    <option value="AUTOMATICO">SISTEMA AUTOMÁTICO (RANDOM ADQUIRIDO)</option>
-                    <option value="LOTERIA_FEDERAL">LOTERIA FEDERAL (INDICAÇÃO EXTRAÇÃO)</option>
-                    <option value="MANUAL">SORTEIO MANUAL (SELEÇÃO DA COTAS)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="block text-xs font-black text-slate-500 uppercase">URLs Imagens Galeria (Separadas por Vírgula)</label>
-                  <input 
-                    type="text" 
-                    placeholder="https://images.unsplash.com/url1, https://images.unsplash.com/url2"
-                    value={imagensInput}
-                    onChange={(e) => setImagensInput(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-[10px] font-mono outline-hidden text-slate-900"
-                  />
-                  <span className="text-[10px] text-slate-400 font-semibold block">Deixe em branco para usar uma imagem padrão premium Unsplash.</span>
-                </div>
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="block text-xs font-black text-slate-500 uppercase">Descrição da Ação</label>
-                  <textarea 
-                    rows={3}
-                    placeholder="Destaque as principais características..."
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-slate-900"
-                  ></textarea>
-                </div>
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="block text-xs font-black text-slate-500 uppercase">Regulamento / Condições Extra</label>
-                  <textarea 
-                    rows={2}
-                    placeholder="A data de sorteio está pré-agendada..."
-                    value={regulamento}
-                    onChange={(e) => setRegulamento(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-semibold text-slate-900"
-                  ></textarea>
-                </div>
+  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-extrabold text-center tex…2116 tokens truncated…         </div>
 
                 {/* Terms of Use Validation Agreement for Creators */}
                 <div className="p-4 bg-amber-500/5 sm:col-span-2 rounded-2xl border border-amber-500/20 flex items-start gap-3 mt-1 text-slate-600 text-[11px] leading-relaxed">
@@ -937,8 +793,8 @@ const handleDeleteCombo = async (comboId: number) => {
 
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                           <div>
-                            <h4 className="text-sm font-black text-slate-800">
-                              Números premiados
+                              <h4 className="text-sm font-black text-slate-800">
+                              Cotas premiadas
                             </h4>
                             <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
                               Prêmios configurados: R$ {totalPremios.toFixed(2)}
@@ -963,7 +819,7 @@ const handleDeleteCombo = async (comboId: number) => {
                             <table className="w-full text-left text-xs">
                               <thead className="bg-slate-50 border-b border-slate-200">
                                 <tr className="text-[9px] uppercase font-black text-slate-400">
-                                  <th className="px-4 py-3">Número</th>
+                                  {isSuperAdmin && <th className="px-4 py-3">Número</th>}
                                   <th className="px-4 py-3">Prêmio</th>
                                   <th className="px-4 py-3">Situação</th>
                                   <th className="px-4 py-3">Comprador</th>
@@ -976,11 +832,11 @@ const handleDeleteCombo = async (comboId: number) => {
 
                                   return (
                                     <tr key={cota.id} className="hover:bg-slate-50">
-                                      <td className="px-4 py-3">
+                                      {isSuperAdmin && <td className="px-4 py-3">
                                         <span className="font-black text-slate-800 text-sm font-mono">
-                                          {cota.numero}
+                                          {cota.numero ?? "—"}
                                         </span>
-                                      </td>
+                                      </td>}
 
                                       <td className="px-4 py-3">
                                         <span className="font-black text-slate-700">
