@@ -225,12 +225,13 @@ export default function Home() {
           </p>
           
           <div className="flex flex-wrap gap-4 pt-2">
-            <a 
-              href="#rifas_ativas_section" 
+            <button
+              type="button"
+              onClick={() => document.getElementById("rifas_ativas_section")?.scrollIntoView({ behavior: "smooth", block: "start" })}
               className="bg-emerald-500 hover:bg-emerald-600 text-neutral-950 px-8 py-3.5 rounded-xl font-black transition duration-200 shadow-md shadow-emerald-500/10 flex items-center gap-2.5 cursor-pointer"
             >
               Ver Campanhas Ativas <ArrowRight className="w-5 h-5 text-neutral-950" />
-            </a>
+            </button>
             <Link 
               to="/compras" 
               className="bg-[#121217] hover:bg-zinc-900 border border-zinc-800/80 text-slate-350 hover:text-white px-6 py-3.5 rounded-xl font-extrabold text-xs tracking-wider uppercase transition duration-200"
