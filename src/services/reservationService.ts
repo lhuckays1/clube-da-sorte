@@ -5,7 +5,7 @@ import { GatewayRepository } from "../repositories/gatewayRepository";
 import { broadcastTicketUpdate, broadcastPaymentConfirmed } from "../websocket";
 import { prisma } from "../db";
 import { formatTicketNumber } from "../utils/ticketNumber";
-import { randomInt, randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
 
 export class ReservationService {
   /**
@@ -152,7 +152,9 @@ export class ReservationService {
     const reserveMinutes = parseInt(timeConf?.valor || "15");
     const expirationDate = new Date(Date.now() + reserveMinutes * 60 * 1000);
 
-    const orderHash = `PED-${randomBytes(24).toString("hex").toUpperCase()}`;
+    const orderPrefix = Array.from({ length: 7 }, () => randomInt(36).toString(36).toUpperCase()).join("");
+    const orderSuffix = randomInt(10_000).toString().padStart(4, "0");
+    const orderHash = `PED-${orderPrefix}-${orderSuffix}`;
 
     // Execute atomic transaction creation & unique constraint enforcement
     const pedido = await OrderRepository.createOrderWithReservation({
