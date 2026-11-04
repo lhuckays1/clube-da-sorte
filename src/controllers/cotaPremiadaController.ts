@@ -4,6 +4,7 @@ import { RaffleRepository } from "../repositories/raffleRepository";
 import { AdminLogRepository } from "../repositories/adminLogRepository";
 import { AuthenticatedRequest } from "../middlewares/authMiddleware";
 import { prisma } from "../db";
+import { formatTicketNumber } from "../utils/ticketNumber";
 
 export class CotaPremiadaController {
   static async create(req: Request, res: Response) {
@@ -41,10 +42,7 @@ export class CotaPremiadaController {
         return;
         }
 
-        const numeroFormatado =
-        numeroNumerico < 100
-            ? String(numeroNumerico).padStart(2, "0")
-            : String(numeroNumerico);
+        const numeroFormatado = formatTicketNumber(numeroNumerico, rifa.quantidadeTotal);
 
         // 3. Valida o prêmio
         const premioNumerico = Number(premio);

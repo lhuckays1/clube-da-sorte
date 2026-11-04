@@ -63,14 +63,19 @@ function Layout() {
       <header className="bg-[#111116]/95 backdrop-blur bg-opacity-95 border-b border-zinc-800/70 sticky top-0 z-40 shadow-lg shadow-black/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex justify-between items-center">
           {/* Logo Brand */}
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-emerald-500 rounded-xl text-neutral-950 shadow-md shadow-emerald-500/20">
-              <Ticket className="w-5.5 h-5.5" />
-            </div>
-            <span className="text-lg font-black tracking-tight text-white uppercase">
-              {configs.site_name}
-            </span>
-          </Link>
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                <img
+                  src="/logo-trevo.png"
+                  alt="Clube da Sorte"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              <span className="text-lg font-black tracking-tight text-white uppercase">
+                {configs.site_name}
+              </span>
+            </Link>
 
           {/* Navigation Items */}
           <nav className="hidden md:flex items-center gap-6 text-xs font-black uppercase text-slate-400 tracking-wide">

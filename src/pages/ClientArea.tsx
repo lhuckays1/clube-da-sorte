@@ -19,7 +19,7 @@ interface Order {
   status: string;
   valorTotal: number;
   createdAt: string;
-  comprador: { nome: string; telefone: string };
+  comprador: { nome: string };
   itens: Array<{
     numeros: string;
     quantidade: number;
@@ -86,12 +86,12 @@ export default function ClientArea() {
       <section className="bg-[#131317] border border-zinc-800/60 p-6 rounded-3xl shadow-lg">
         <form onSubmit={handleSearch} className="space-y-4">
           <div className="space-y-1 bg-transparent">
-            <label className="block text-[10px] font-black text-slate-450 uppercase tracking-widest text-slate-400">Pesquise por Telefone, CPF ou Código do Pedido</label>
+            <label className="block text-[10px] font-black text-slate-450 uppercase tracking-widest text-slate-400">Pesquise pelo telefone completo, CPF completo ou código do pedido</label>
             <div className="relative">
               <input 
                 type="text" 
                 required 
-                placeholder="Ex: 11999999999, 123.456.789-00 ou PED-..."
+                placeholder="Ex: 11999999999, 123.456.789-00 ou PED-... (sem trechos)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-zinc-900 border border-zinc-800 focus:border-emerald-500 p-3.5 pl-11 rounded-2xl text-xs font-semibold text-white outline-hidden tracking-wide"

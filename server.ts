@@ -23,18 +23,23 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-const PORT = process.env.PORT || 4100;
-const HOST = "0.0.0.0";
+const PORT = Number(process.env.PORT || 4100);
+const HOST = process.env.HOST || "127.0.0.1";
 
 async function bootstrap() {
+
   const app = express();
+
+  // Cloudflare / Proxy reverso
+  app.set("trust proxy", "loopback");
+
   const server = http.createServer(app);
 
   // 1. Initial essential parsing & security middlewares
   
   // Custom CORS domain constraints (allowing APP_URL, localhost and dynamic preview run.app subdomains)
   const allowedOrigins = [
-    process.env.APP_URL,
+    process.env.APP_URL ? new URL(process.env.APP_URL).origin : undefined,
     "http://localhost:3000",
     "http://localhost:5173",
   ].filter(Boolean) as string[];
@@ -44,8 +49,7 @@ async function bootstrap() {
       origin: (origin, callback) => {
         if (
           !origin ||
-          allowedOrigins.some((allowed) => origin.startsWith(allowed)) ||
-          origin.endsWith(".run.app")
+          allowedOrigins.includes(origin)
         ) {
           callback(null, true);
         } else {
@@ -77,8 +81,8 @@ async function bootstrap() {
 
   app.use("/api", apiLimiter);
 
-  app.use(express.json({ limit: "10mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
   // 2. Automated startup seeding (Zero-Setup frictionless UX)
   try {
@@ -95,7 +99,7 @@ async function bootstrap() {
         { chave: "tempo_reserva", valor: "15" },
         { chave: "cor_principal", valor: "#4f46e5" },
         { chave: "cor_secundaria", valor: "#10b981" },
-        { chave: "gateway_ativo", valor: "MOCK" },
+        { chave: "gateway_ativo", valor: "NONE" },
       ];
 
       for (const config of defaultConfigs) {
@@ -117,39 +121,7 @@ async function bootstrap() {
       }
     }
 
-    // Seed default Payment Gateways in DB if empty
-    const gatewayCount = await prisma.gatewayPagamento.count();
-    if (gatewayCount === 0) {
-      await prisma.gatewayPagamento.createMany({
-        data: [
-          {
-            nome: "MOCK",
-            ambiente: "SANDBOX",
-            credenciais: JSON.stringify({ token: "simulacao-desenvolvimento" }),
-            taxaFixa: 0.0,
-            taxaPercent: 0.0,
-            ativo: true,
-          },
-          {
-            nome: "MERCADO_PAGO",
-            ambiente: "SANDBOX",
-            credenciais: JSON.stringify({ accessToken: "YOUR_MERCADO_PAGO_TOKEN" }),
-            taxaFixa: 0.0,
-            taxaPercent: 0.99,
-            ativo: false,
-          },
-          {
-            nome: "ASAAS",
-            ambiente: "SANDBOX",
-            credenciais: JSON.stringify({ apiKey: "YOUR_ASAAS_KEY" }),
-            taxaFixa: 0.99,
-            taxaPercent: 0.0,
-            ativo: false,
-          },
-        ],
-      });
-      console.log("🚀 Semente do Banco de Dados: Gateways de pagamento iniciais semeados!");
-    }
+    // No active/mock payment provider is created automatically in production.
   } catch (error) {
     console.error("⚠️ Alerta na inicialização da semente do Banco de Dados:", error);
   }
@@ -172,7 +144,7 @@ async function bootstrap() {
     });
     app.use(vite.middlewares);
   } else {
-    console.log("Modo Produção: Servindo arquivos estáticos de compilação dist/...");
+    console.log("Modo Produção: Servindo apenas os arquivos públicos de dist/...");
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     

@@ -24,13 +24,21 @@ export class PixService {
     // 1. Fetch configured active gateway from our database
     const activeGatewayRecord = await GatewayRepository.findActive();
 
-    const gatewayName = activeGatewayRecord?.nome || "MOCK";
+    const gatewayName = activeGatewayRecord?.nome;
     const credentialsStr = activeGatewayRecord?.credenciais || "{}";
     const ambienteVal = (activeGatewayRecord?.ambiente || "SANDBOX") as "SANDBOX" | "PRODUCTION";
 
-    console.log(`[PixService] Utilizando gateway ativo: ${gatewayName} (${ambienteVal})`);
+    if (!gatewayName || !this.gateways[gatewayName]) {
+      if (process.env.NODE_ENV !== "production" && process.env.ALLOW_MOCK_PAYMENTS === "true") {
+        return this.gateways.MOCK.generatePix({ ...params, credenciaisJson: "{}", ambiente: "SANDBOX" });
+      }
+      throw new Error("Nenhum gateway de pagamento válido está configurado.");
+    }
+    if (gatewayName === "MOCK" && (process.env.NODE_ENV === "production" || process.env.ALLOW_MOCK_PAYMENTS !== "true" || ambienteVal !== "SANDBOX")) {
+      throw new Error("Pagamentos simulados estão desabilitados neste ambiente.");
+    }
 
-    const executor = this.gateways[gatewayName] || this.gateways["MOCK"];
+    const executor = this.gateways[gatewayName];
 
     return executor.generatePix({
       pedidoId: params.pedidoId,

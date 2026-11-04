@@ -60,7 +60,7 @@ export default function AdminConfig({ token }: { token: string }) {
   const [tempoReserva, setTempoReserva] = useState("15");
   const [corPrincipal, setCorPrincipal] = useState("#4f46e5");
   const [corSecundaria, setCorSecundaria] = useState("#10b981");
-  const [gatewayAtivo, setGatewayAtivo] = useState("MOCK");
+  const [gatewayAtivo, setGatewayAtivo] = useState("NONE");
 
   // Rotating banners state
   const [bannersList, setBannersList] = useState<string[]>([]);
@@ -89,7 +89,7 @@ export default function AdminConfig({ token }: { token: string }) {
   // Load configuration set & items
   useEffect(() => {
     // 1. Fetch configs
-    fetch("/api/configuracoes")
+    fetch("/api/admin/configuracoes", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((data) => {
         setSiteName(data.site_name || "Clube da Sorte");
@@ -101,7 +101,7 @@ export default function AdminConfig({ token }: { token: string }) {
         setTempoReserva(String(data.tempo_reserva || "15"));
         setCorPrincipal(data.cor_principal || "#4f46e5");
         setCorSecundaria(data.cor_secundaria || "#10b981");
-        setGatewayAtivo(data.gateway_ativo || "MOCK");
+        setGatewayAtivo(data.gateway_ativo || "NONE");
 
         if (data.banners) {
           try {
@@ -567,7 +567,7 @@ export default function AdminConfig({ token }: { token: string }) {
                     onChange={(e) => setGatewayAtivo(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold text-slate-850"
                   >
-                    <option value="MOCK">MOCK (SANDBOX TESTES)</option>
+                    <option value="NONE">Nenhum gateway ativo</option>
                     <option value="MERCADO_PAGO">MERCADO PAGO (PROD)</option>
                     <option value="ASAAS">ASAAS (PROD)</option>
                   </select>
@@ -575,7 +575,7 @@ export default function AdminConfig({ token }: { token: string }) {
               </div>
 
               <div className="p-3 bg-amber-50 rounded-2xl border border-amber-100 text-[10px] text-amber-900 font-semibold leading-relaxed">
-                <span>O faturamento fictício está ativo por padrão no faturamento experimental. Chaves produtivas reais em Mercado Pago ou Asaas podem ser configuradas pela aba de gateways dedicados.</span>
+                <span>Pagamentos simulados ficam desabilitados em produção. Configure credenciais válidas de Asaas ou Mercado Pago antes de ativar um gateway.</span>
               </div>
             </div>
           </div>

@@ -9,6 +9,7 @@ import { DashboardController } from "./controllers/dashboardController";
 import { UserController } from "./controllers/userController";
 import { CotaPremiadaController } from "./controllers/cotaPremiadaController";
 import { prisma } from "./db";
+import rateLimit from "express-rate-limit";
 
 export const apiRouter = Router();
 
@@ -20,8 +21,9 @@ apiRouter.get("/rifas", RaffleController.listPublic);
 apiRouter.get("/rifas/:id", RaffleController.getDetails);
 apiRouter.get("/rifas/:id/numbers", RaffleController.getTakenNumbers);
 apiRouter.post("/pedidos", OrderController.create);
+apiRouter.post("/cupons/validar", rateLimit({ windowMs: 15 * 60 * 1000, limit: 12, standardHeaders: true, legacyHeaders: false }), ConfigController.validateCoupon);
 apiRouter.get("/pedidos/:hash", OrderController.getByHash);
-apiRouter.get("/compras", OrderController.searchHistory);
+apiRouter.get("/compras", rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true, legacyHeaders: false }), OrderController.searchHistory);
 
 // Public Ganhadores listing
 apiRouter.get("/ganhadores", async (req, res) => {
@@ -78,12 +80,14 @@ apiRouter.get("/pedidos/ranking", async (req, res) => {
 
 // Unified Webhook for automated payment reconciliation
 apiRouter.post("/webhook/pix", OrderController.handleWebhook);
+apiRouter.post("/webhook/asaas", OrderController.handleWebhook);
+apiRouter.post("/webhook/mercadopago", OrderController.handleMercadoPagoWebhook);
 
 
 // ==========================================
 // ADMINISTRATIVE PORTAL ENTRANCES (JWT SIGNED)
 // ==========================================
-apiRouter.post("/admin/login", AuthController.login);
+apiRouter.post("/admin/login", rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true, legacyHeaders: false }), AuthController.login);
 apiRouter.get("/admin/me", authMiddleware, AuthController.me);
 
 // Statistics and Insights Dashboard
@@ -219,6 +223,7 @@ apiRouter.delete(
 
 // General configuration switches
 apiRouter.post("/admin/configuracoes", authMiddleware, ConfigController.saveConfigs);
+apiRouter.get("/admin/configuracoes", authMiddleware, ConfigController.getAdminConfigs);
 
 // High-Performance Multi-Gateway switches configurations
 apiRouter.get("/admin/gateways", authMiddleware, ConfigController.listGateways);

@@ -3,12 +3,8 @@ import { RaffleRepository } from "../repositories/raffleRepository";
 import { BuyerRepository } from "../repositories/buyerRepository";
 import { broadcastTicketUpdate, broadcastPaymentConfirmed } from "../websocket";
 import { prisma } from "../db";
-
-function formatTicketNumber(num: number, totalSize: number): string {
-  const digits = totalSize.toString().length;
-  const paddingLength = Math.max(2, digits - 1);
-  return num.toString().padStart(paddingLength, "0");
-}
+import { formatTicketNumber } from "../utils/ticketNumber";
+import { randomInt, randomBytes } from "node:crypto";
 
 export class ReservationService {
   /**
@@ -67,12 +63,13 @@ export class ReservationService {
 
     if (Array.isArray(numeros) && numeros.length > 0) {
       resolvedNumbers = numeros.map((n) => n.trim());
+      if (new Set(resolvedNumbers).size !== resolvedNumbers.length) throw new Error("Há números repetidos na seleção.");
       for (const num of resolvedNumbers) {
         if (takenMap.has(num)) {
           throw new Error(`O número [ ${num} ] já se encontra indisponível.`);
         }
         const numericIndex = parseInt(num);
-        if (isNaN(numericIndex) || numericIndex < 0 || numericIndex >= rifa.quantidadeTotal) {
+        if (!Number.isInteger(numericIndex) || numericIndex < 0 || numericIndex >= rifa.quantidadeTotal || formatTicketNumber(numericIndex, rifa.quantidadeTotal) !== num) {
           throw new Error(`Número inválido para esta rifa: ${num}`);
         }
       }
@@ -90,7 +87,10 @@ export class ReservationService {
         throw new Error(`Apenas ${availableNumbers.length} números restantes nesta rifa.`);
       }
 
-      // Shuffle or slice
+      for (let i = availableNumbers.length - 1; i > 0; i--) {
+        const j = randomInt(i + 1);
+        [availableNumbers[i], availableNumbers[j]] = [availableNumbers[j], availableNumbers[i]];
+      }
       resolvedNumbers = availableNumbers.slice(0, quantidade);
     } else {
       throw new Error("Selecione algum número ou informe uma quantidade para prosseguir.");
@@ -143,7 +143,7 @@ export class ReservationService {
       }
     }
 
-    const orderHash = `PED-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+    const orderHash = `PED-${randomBytes(24).toString("hex").toUpperCase()}`;
 
     // Execute atomic transaction creation & unique constraint enforcement
     const pedido = await OrderRepository.createOrderWithReservation({

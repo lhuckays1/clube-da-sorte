@@ -237,19 +237,21 @@ export class OrderRepository {
         throw new Error("Pedido não encontrado");
       }
 
-      // Pedido já processado.
-      // Isso também protege contra webhook duplicado.
       if (pedido.status === "PAGO") {
         return pedido;
       }
+      if (pedido.status !== "PENDENTE" || pedido.expiracaoPix < new Date()) {
+        throw new Error("Somente pedidos pendentes e não expirados podem ser aprovados");
+      }
 
-      // 1. Atualiza o pedido para PAGO
-      const updatedOrder = await tx.pedido.update({
-        where: { id },
+      const transition = await tx.pedido.updateMany({
+        where: { id, status: "PENDENTE", expiracaoPix: { gt: new Date() } },
         data: {
           status: "PAGO",
         },
       });
+      if (transition.count !== 1) throw new Error("Pedido mudou de estado durante a aprovação");
+      const updatedOrder = await tx.pedido.findUniqueOrThrow({ where: { id } });
 
       // 2. Atualiza todos os bilhetes vinculados ao pedido para PAGO
       await tx.numeroBilhete.updateMany({
@@ -304,10 +306,15 @@ export class OrderRepository {
 
   static async cancelOrder(id: number) {
     return prisma.$transaction(async (tx) => {
-      const updatedOrder = await tx.pedido.update({
-        where: { id },
+      const pedido = await tx.pedido.findUnique({ where: { id } });
+      if (!pedido) throw new Error("Pedido não encontrado");
+      if (pedido.status !== "PENDENTE") throw new Error("Somente pedidos pendentes podem ser cancelados");
+      const transition = await tx.pedido.updateMany({
+        where: { id, status: "PENDENTE" },
         data: { status: "CANCELADO" },
       });
+      if (transition.count !== 1) throw new Error("Pedido mudou de estado durante o cancelamento");
+      const updatedOrder = await tx.pedido.findUniqueOrThrow({ where: { id } });
 
       // Delete the temporary reservation records to liberate the unique constraint slots
       await tx.numeroBilhete.deleteMany({

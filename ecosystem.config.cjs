@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "rifas-online-backend",
-      script: "./dist/server.cjs",
+      script: "./build/server.cjs",
       // Ajustado para Socket.IO: Em cluster mode, o Socket.IO exige um Redis Adapter ou Sticky Sessions no Nginx.
       // Para manter a simplicidade e total estabilidade de conexao WebSocket sem dependencias externas de Redis,
       // configuramos 1 instancia em modo 'fork'. Caso escale, utilize @socket.io/pm2 ou Redis Adapter.

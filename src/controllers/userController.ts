@@ -29,9 +29,9 @@ export class UserController {
         senha,
       } = req.body;
 
-      if (!nome || !email || !senha) {
+      if (!nome || !email || !senha || String(senha).length < 12) {
         return res.status(400).json({
-          error: "Todos os campos são obrigatórios.",
+          error: "Informe nome, e-mail e uma senha com pelo menos 12 caracteres.",
         });
       }
 
@@ -57,7 +57,7 @@ export class UserController {
         detalhes: `Criou o usuário ${usuario.nome} (${usuario.email})`,
       });
 
-      res.json(usuario);
+      res.json({ id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role });
 
     } catch (error: any) {
 
@@ -100,7 +100,7 @@ export class UserController {
         detalhes: `Atualizou o usuário ${atualizado.nome}`,
       });
 
-      res.json(atualizado);
+      res.json({ id: atualizado.id, nome: atualizado.nome, email: atualizado.email, role: atualizado.role });
 
     } catch (error: any) {
 
@@ -120,9 +120,9 @@ export class UserController {
 
       const { senha } = req.body;
 
-      if (!senha) {
+      if (!senha || String(senha).length < 12) {
         return res.status(400).json({
-          error: "Informe a nova senha.",
+          error: "A nova senha deve ter pelo menos 12 caracteres.",
         });
       }
 

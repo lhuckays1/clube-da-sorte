@@ -1,4 +1,6 @@
 import { prisma } from "../db";
+import { randomInt } from "node:crypto";
+import { formatTicketNumber } from "../utils/ticketNumber";
 
 export class RaffleRepository {
   static async findById(id: number) {
@@ -108,7 +110,7 @@ export class RaffleRepository {
 
       // 4. Embaralhamento Fisher-Yates
       for (let i = numerosDisponiveis.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = randomInt(i + 1);
 
         [numerosDisponiveis[i], numerosDisponiveis[j]] = [
           numerosDisponiveis[j],
@@ -119,11 +121,7 @@ export class RaffleRepository {
       // 5. Selecionar somente a quantidade configurada
       const numerosPremiados = numerosDisponiveis
         .slice(0, quantidadeCotas)
-        .map((numero) =>
-          numero < 100
-            ? String(numero).padStart(2, "0")
-            : String(numero)
-        );
+        .map((numero) => formatTicketNumber(numero, data.quantidadeTotal));
 
       // 6. Criar as Cotas Premiadas
       await tx.cotaPremiada.createMany({

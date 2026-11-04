@@ -22,21 +22,11 @@ export class AsaasGateway implements IPaymentGateway {
 
       const apiKey = credentials.apiKey || process.env.ASAAS_API_KEY;
       const baseUrl = params.ambiente === "PRODUCTION" 
-              ? "https://www.asaas.com/api/v3" 
-              : "https://sandbox.asaas.com/api/v3";
+              ? "https://api.asaas.com/v3" 
+              : "https://api-sandbox.asaas.com/v3";
 
-      if (!apiKey || apiKey === "YOUR_ASAAS_KEY") {
-        const txid = `ASAAS-MOCK-${Date.now()}-${params.pedidoId}`;
-        const copiaCola = `00020101021226580014br.gov.bcb.pix0136asaas-mock-7b03-f09b-4680-bc4e-7b7cf1612e2b5204000053039865405${params.valor.toFixed(
-          2
-        )}5802BR5908ASAAS_S6009SAO_PAULO62190515${txid}`;
-        return {
-          txid,
-          qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(copiaCola)}`,
-          copiaCola,
-          expiresIn: 900,
-        };
-      }
+      if (!apiKey || apiKey === "YOUR_ASAAS_KEY") throw new Error("Credencial Asaas ausente; PIX não foi criado.");
+      if (!params.cpfComprador || params.cpfComprador.replace(/\D/g, "").length !== 11) throw new Error("CPF válido é necessário para criar a cobrança Asaas.");
 
       // Real integration API requests for Asaas:
       // 1. Create a Customer
@@ -48,7 +38,7 @@ export class AsaasGateway implements IPaymentGateway {
         },
         body: JSON.stringify({
           name: params.nomeComprador,
-          cpfCnpj: params.cpfComprador?.replace(/\D/g, "") || "00000000000",
+          cpfCnpj: params.cpfComprador.replace(/\D/g, ""),
           mobilePhone: params.telefoneComprador,
 
           notificationDisabled: true
@@ -56,8 +46,7 @@ export class AsaasGateway implements IPaymentGateway {
       });
 
       if (!customerRes.ok) {
-        const text = await customerRes.text();
-        throw new Error(`Asaas Customer Creation failed: ${text}`);
+        throw new Error("Asaas customer creation failed");
       }
 
       const customerData = await customerRes.json();
@@ -81,8 +70,7 @@ export class AsaasGateway implements IPaymentGateway {
       });
 
       if (!paymentRes.ok) {
-        const text = await paymentRes.text();
-        throw new Error(`Asaas Payment Creation failed: ${text}`);
+        throw new Error("Asaas payment creation failed");
       }
 
       const paymentData = await paymentRes.json();
@@ -97,8 +85,7 @@ export class AsaasGateway implements IPaymentGateway {
       });
 
       if (!pixKeyRes.ok) {
-        const text = await pixKeyRes.text();
-        throw new Error(`Asaas PIX code request failed: ${text}`);
+        throw new Error("Asaas PIX code request failed");
       }
 
       const qrCodeData = await pixKeyRes.json();
@@ -112,8 +99,8 @@ export class AsaasGateway implements IPaymentGateway {
         expiresIn: 900,
       };
     } catch (err: any) {
-      console.error("Erro ao gerar PIX com Asaas Gateway:", err);
-      throw err;
+      console.error("Erro ao gerar PIX com Asaas Gateway:", err?.message || "erro interno");
+      throw new Error("Não foi possível gerar o PIX. Verifique a configuração do gateway.");
     }
   }
 }

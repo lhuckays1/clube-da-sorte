@@ -34,6 +34,10 @@ export class AuthController {
         res.status(401).json({ error: "E-mail ou senha incorretos" });
         return;
       }
+      if (usuario.role !== "ADMIN") {
+        res.status(403).json({ error: "Acesso restrito a administradores" });
+        return;
+      }
 
       const token = jwt.sign(
         { id: usuario.id, email: usuario.email, nome: usuario.nome },
@@ -46,6 +50,7 @@ export class AuthController {
           id: usuario.id,
           email: usuario.email,
           nome: usuario.nome,
+          role: usuario.role,
         },
         token,
       });

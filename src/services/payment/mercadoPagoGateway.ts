@@ -22,19 +22,7 @@ export class MercadoPagoGateway implements IPaymentGateway {
 
       const accessToken = credentials.accessToken || process.env.MERCADO_PAGO_TOKEN;
 
-      // If no valid environment credentials or is MOCK, execute high-fidelity simulation
-      if (!accessToken || accessToken === "YOUR_MERCADO_PAGO_TOKEN") {
-        const txid = `MP-MOCK-${Date.now()}-${params.pedidoId}`;
-        const copiaCola = `00020101021226580014br.gov.bcb.pix0136mp-mock-7b03-f09b-4680-bc4e-7b7cf1612e2b5204000053039865405${params.valor.toFixed(
-          2
-        )}5802BR5915MERCADO_PAGO_S6009SAO_PAULO62190515${txid}`;
-        return {
-          txid,
-          qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(copiaCola)}`,
-          copiaCola,
-          expiresIn: 900,
-        };
-      }
+      if (!accessToken || accessToken === "YOUR_MERCADO_PAGO_TOKEN") throw new Error("Credencial Mercado Pago ausente; PIX não foi criado.");
 
       // Real integration API request
       const response = await fetch("https://api.mercadopago.com/v1/payments", {
@@ -42,12 +30,14 @@ export class MercadoPagoGateway implements IPaymentGateway {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
+          "X-Idempotency-Key": `pedido-${params.pedidoId}`,
         },
         body: JSON.stringify({
           transaction_amount: params.valor,
           payment_method_id: "pix",
           description: `Compra do pedido #${params.pedidoId} no Clube da Sorte`,
-          notification_url: `${process.env.APP_URL || "https://clubedasorte.athominfotech.com.br"}/api/webhook/mercadopago`,
+          external_reference: String(params.pedidoId),
+          notification_url: `${process.env.APP_URL || "https://clubedasorte.athomoinfotech.com.br"}/api/webhook/mercadopago`,
           payer: {
             email: `${params.telefoneComprador}@clubedasorte.com`,
             first_name: params.nomeComprador.split(" ")[0],
@@ -61,8 +51,7 @@ export class MercadoPagoGateway implements IPaymentGateway {
       });
 
       if (!response.ok) {
-        const errBody = await response.text();
-        throw new Error(`MercadoPago API Error: ${errBody}`);
+        throw new Error("Mercado Pago payment creation failed");
       }
 
       const data = await response.json();
@@ -76,8 +65,8 @@ export class MercadoPagoGateway implements IPaymentGateway {
         expiresIn: 900,
       };
     } catch (error: any) {
-      console.error("Erro ao gerar PIX com MercadoPago Gateway:", error);
-      throw error;
+      console.error("Erro ao gerar PIX com MercadoPago Gateway:", error?.message || "erro interno");
+      throw new Error("Não foi possível gerar o PIX. Verifique a configuração do gateway.");
     }
   }
 }

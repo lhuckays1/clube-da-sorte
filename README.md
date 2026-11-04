@@ -1,20 +1,13 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Clube da Sorte
 
-# Run and deploy your AI Studio app
+Aplicação web para rifas e pagamentos Pix. Backend Node.js/Express, frontend React/Vite e PostgreSQL via Prisma.
 
-This contains everything you need to run your app locally.
+## Desenvolvimento
 
-View your app in AI Studio: https://ai.studio/apps/eb6cfc68-ce10-4cba-81d5-276b2a6071e4
+1. `npm ci`
+2. Configure `.env` com `DATABASE_URL`, `JWT_SECRET`, `APP_URL` e credenciais de sandbox.
+3. `npx prisma generate`
+4. `npx prisma migrate deploy`
+5. `npm run dev`
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Não use credenciais reais ou banco de produção durante desenvolvimento. Consulte [DEPLOY.md](DEPLOY.md) para atualizar a VPS.

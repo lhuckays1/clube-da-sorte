@@ -24,7 +24,7 @@ interface Pedido {
   pixCopiaCola: string;
   pixQrCode: string;
   expiracaoPix: string;
-  comprador: { nome: string; telefone: string; cidade: string; estado: string; cpf?: string };
+  comprador: { nome: string; cidade: string; estado: string };
   itens: Array<{
     id: number;
     numeros: string;
@@ -192,10 +192,6 @@ export default function Checkout() {
           <div>
             <span className="block text-[10px] uppercase font-bold text-slate-500">Comprador</span>
             <span className="text-slate-100 text-base font-bold mt-0.5 block">{pedido.comprador.nome}</span>
-          </div>
-          <div>
-            <span className="block text-[10px] uppercase font-bold text-slate-500">Telefone</span>
-            <span className="text-slate-303 mt-0.5 block">{pedido.comprador.telefone}</span>
           </div>
           <div>
             <span className="block text-[10px] uppercase font-bold text-slate-500">Cidade / Estado</span>

@@ -14,6 +14,7 @@ export class UserRepository {
         email: true,
         createdAt: true,
         updatedAt: true,
+        role: true,
       },
     });
   }

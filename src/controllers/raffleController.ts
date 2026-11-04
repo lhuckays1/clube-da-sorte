@@ -5,6 +5,8 @@ import { AdminLogRepository } from "../repositories/adminLogRepository";
 import { AuthenticatedRequest } from "../middlewares/authMiddleware";
 import { broadcastRaffleStatusUpdate } from "../websocket";
 import { prisma } from "../db";
+import { randomInt } from "node:crypto";
+import { formatTicketNumber } from "../utils/ticketNumber";
 
 export class RaffleController {
   static async listPublic(req: Request, res: Response) {
@@ -558,9 +560,7 @@ export class RaffleController {
       metodo === "AUTOMATICO" ||
       rifa.metodoSorteio === "AUTOMATICO"
     ) {
-      const randIdx = Math.floor(
-        Math.random() * paidTickets.length
-      );
+      const randIdx = randomInt(paidTickets.length);
 
       winningNumber = paidTickets[randIdx];
 
@@ -650,12 +650,7 @@ export class RaffleController {
       // 10.000 cotas → 0000 até 9999 → 4 dígitos
       //
 
-      const quantidadeDigitos = String(quantidadeTotal - 1).length;
-
-      winningNumber = String(numeroConvertido).padStart(
-        quantidadeDigitos,
-        "0"
-      );
+      winningNumber = formatTicketNumber(numeroConvertido, quantidadeTotal);
 
       calculoApuracao =
         `${resultadoLimpo} % ${quantidadeTotal} = ${numeroConvertido}`;

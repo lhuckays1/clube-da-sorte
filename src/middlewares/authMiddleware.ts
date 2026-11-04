@@ -1,15 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { prisma } from "../db";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: number;
     email: string;
     nome: string;
+    role?: string;
   };
 }
 
-export function authMiddleware(
+export async function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
@@ -43,9 +45,11 @@ export function authMiddleware(
       nome: string;
     };
 
-    (req as AuthenticatedRequest).user = decoded;
-
-    next();
+    const user = await prisma.usuario.findUnique({ where: { id: decoded.id }, select: { id: true, email: true, nome: true, role: true } });
+    if (!user) return res.status(401).json({ error: "Usuário não está mais ativo" });
+    if (user.role !== "ADMIN") return res.status(403).json({ error: "Acesso restrito a administradores" });
+    (req as AuthenticatedRequest).user = user;
+    return next();
   } catch {
     return res.status(403).json({
       error: "Token inválido ou expirado",

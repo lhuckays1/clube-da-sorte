@@ -24,17 +24,34 @@ export class ConfigController {
         tempo_reserva: parseInt(configMap.tempo_reserva || "15"),
         cor_principal: configMap.cor_principal || "#4f46e5",
         cor_secundaria: configMap.cor_secundaria || "#10b981",
-        gateway_ativo: configMap.gateway_ativo || "MOCK",
+        banners: configMap.banners || "[]",
       };
 
-      // Expose any additional dynamic configurations such as banners, cupons, etc.
-      configs.forEach((c) => {
-        if (!(c.chave in responseObj)) {
-          responseObj[c.chave] = c.valor;
-        }
-      });
-
       res.json(responseObj);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async validateCoupon(req: Request, res: Response) {
+    try {
+      const code = String(req.body?.codigo || "").trim().toUpperCase();
+      if (!/^[A-Z0-9_-]{2,32}$/.test(code)) return res.status(400).json({ error: "Código de cupom inválido" });
+      const config = await prisma.configuracao.findUnique({ where: { chave: "cupons_promo" } });
+      const coupons = config ? JSON.parse(config.valor) : [];
+      const match = Array.isArray(coupons) ? coupons.find((coupon: any) => String(coupon.codigo || "").trim().toUpperCase() === code) : undefined;
+      const discount = Number(match?.descontoPct);
+      if (!match || !Number.isFinite(discount) || discount <= 0 || discount > 100) return res.status(404).json({ error: "Cupom não localizado ou indisponível" });
+      return res.json({ codigo: code, descontoPct: discount });
+    } catch {
+      return res.status(500).json({ error: "Não foi possível validar o cupom" });
+    }
+  }
+
+  static async getAdminConfigs(_req: Request, res: Response) {
+    try {
+      const configs = await prisma.configuracao.findMany();
+      res.json(Object.fromEntries(configs.map(({ chave, valor }) => [chave, valor])));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -47,6 +64,18 @@ export class ConfigController {
 
       for (const key of Object.keys(data)) {
         const value = String(data[key]);
+        if (key === "gateway_ativo") {
+          if (value === "NONE") {
+            await prisma.gatewayPagamento.updateMany({ data: { ativo: false } });
+          } else {
+            const gateway = await GatewayRepository.findByNome(value);
+            if (!gateway) return res.status(400).json({ error: "Configure primeiro as credenciais do gateway" });
+            if (value === "MOCK" && (process.env.NODE_ENV === "production" || process.env.ALLOW_MOCK_PAYMENTS !== "true" || gateway.ambiente !== "SANDBOX")) {
+              return res.status(400).json({ error: "Pagamentos simulados estão desabilitados" });
+            }
+            await GatewayRepository.setActiveOnly(gateway.id);
+          }
+        }
         await prisma.configuracao.upsert({
           where: { chave: key },
           update: { valor: value },
@@ -69,7 +98,7 @@ export class ConfigController {
   static async listGateways(req: Request, res: Response) {
     try {
       const gws = await GatewayRepository.listAll();
-      res.json(gws);
+      res.json(gws.map(({ credenciais, ...gateway }) => ({ ...gateway, credentialsConfigured: Boolean(credenciais) })));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -117,7 +146,8 @@ export class ConfigController {
         detalhes: `Configurou o gateway de pagamento: ${nome} (Ativo: ${ativo || false})`,
       });
 
-      res.json({ success: true, gateway: gw });
+      const { credenciais: _secret, ...safeGateway } = gw;
+      res.json({ success: true, gateway: { ...safeGateway, credentialsConfigured: true } });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

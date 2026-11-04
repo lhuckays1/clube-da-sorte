@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatTicketNumber } from "../utils/ticketNumber";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { 
@@ -49,7 +50,6 @@ export default function RaffleDetails() {
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [couponError, setCouponError] = useState("");
-  const [configs, setConfigs] = useState<any>({ cupons_promo: "[]" });
 
   // Checkout drawer variables
   const [showCheckout, setShowCheckout] = useState(false);
@@ -94,16 +94,6 @@ export default function RaffleDetails() {
         console.error("Erro numeros rifa:", err);
         setLoading(false);
       });
-
-    // 3. Fetch public coupons for simulation/live application
-    fetch("/api/configuracoes")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && !data.error) {
-          setConfigs((prev: any) => ({ ...prev, ...data }));
-        }
-      })
-      .catch((err) => console.error("Erro ao carregar cupons:", err));
 
     // 4. Coordinate real-time websocket synchronization
     const socket = io();
@@ -156,11 +146,7 @@ export default function RaffleDetails() {
     );
   }
 
-  const formatTicketNum = (num: number) => {
-    const totalDigits = rifa.quantidadeTotal.toString().length;
-    const padding = Math.max(2, totalDigits - 1);
-    return num.toString().padStart(padding, "0");
-  };
+  const formatTicketNum = (num: number) => formatTicketNumber(num, rifa.quantidadeTotal);
 
   // Toggle ticket choice
   const handleToggleManualNumber = (numStr: string) => {
@@ -175,7 +161,7 @@ const addQuickTicketsCount = (count: number) => {
   const availableNumbers: string[] = [];
 
   // Lista todos os números disponíveis
-  for (let i = 1; i <= rifa.quantidadeTotal; i++){
+  for (let i = 0; i < rifa.quantidadeTotal; i++){
     const numStr = formatTicketNum(i);
 
     if (
@@ -227,7 +213,7 @@ const addQuickTicketsCount = (count: number) => {
   const handleSelectCombo = (qty: number) => {
   const availableNumbers: string[] = [];
 
-  for (let i = 1; i <= rifa.quantidadeTotal; i++) {
+  for (let i = 0; i < rifa.quantidadeTotal; i++) {
     const numStr = formatTicketNum(i);
 
     if (!takenNumbers[numStr]) {
@@ -252,27 +238,18 @@ const addQuickTicketsCount = (count: number) => {
 };
 
   // Apply Coupon Promotion Code
-  const handleApplyPromoCoupon = () => {
+  const handleApplyPromoCoupon = async () => {
     setCouponError("");
     setAppliedCoupon(null);
     if (!couponInput.trim()) return;
 
     try {
-      const couponSchema = JSON.parse(configs.cupons_promo || "[]");
-      if (Array.isArray(couponSchema)) {
-        const match = couponSchema.find(
-          (c: any) => c.codigo.trim().toUpperCase() === couponInput.trim().toUpperCase()
-        );
-        if (match) {
-          setAppliedCoupon(match);
-        } else {
-          setCouponError("Código do cupom não localizado.");
-        }
-      } else {
-        setCouponError("Nenhum cupom disponível.");
-      }
-    } catch (err) {
-      setCouponError("Falha na validação do cupom.");
+      const response = await fetch("/api/cupons/validar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codigo: couponInput.trim() }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Cupom inválido");
+      setAppliedCoupon(data);
+    } catch (err: any) {
+      setCouponError(err.message || "Falha na validação do cupom.");
     }
   };
 
@@ -724,7 +701,9 @@ const addQuickTicketsCount = (count: number) => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">CPF (Opcional - Necessário para resgate de prêmios)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                  CPF <span className="text-red-500">*</span> — Obrigatório
+                </label>
                 <input 
                   type="text" 
                   placeholder="000.000.000-00"

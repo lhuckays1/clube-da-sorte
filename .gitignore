@@ -3,6 +3,10 @@ node_modules/
 
 # Build
 dist/
+build/
+server.cjs
+*.map
+.npm-cache/
 
 # Arquivos de ambiente
 .env
