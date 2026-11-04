@@ -146,6 +146,10 @@ async function bootstrap() {
   } else {
     console.log("Modo Produção: Servindo apenas os arquivos públicos de dist/...");
     const distPath = path.join(process.cwd(), "dist");
+    app.use((req, res, next) => {
+      if (/\.(?:cjs|map)$/i.test(req.path)) return res.sendStatus(404);
+      return next();
+    });
     app.use(express.static(distPath));
     
     // Serve SPA index.html for any other route requests
