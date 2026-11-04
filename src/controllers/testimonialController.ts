@@ -3,7 +3,7 @@ import { prisma } from "../db";
 import { AuthenticatedRequest } from "../middlewares/authMiddleware";
 import { AdminLogRepository } from "../repositories/adminLogRepository";
 
-const orderCodePattern = /^PED-[0-9A-F]{48}$/;
+const orderCodePattern = /^PED-(?:[0-9A-F]{48}|[A-Z0-9]{7}-[0-9]{4})$/;
 
 function publicName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
