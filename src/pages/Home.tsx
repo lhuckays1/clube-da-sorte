@@ -500,7 +500,7 @@ export default function Home() {
 
           <div className="space-y-5 flex-1 flex flex-col justify-center">
             {testimonials.length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-400">Ainda não há depoimentos aprovados. Os comentários aparecem aqui após a revisão.</p>
+              <p className="py-4 text-center text-sm text-slate-400">Compartilhe sua experiência com a gente. Seu relato poderá aparecer aqui em breve.</p>
             ) : testimonials.map((testimonial) => (
               <article key={testimonial.id} className="space-y-3 border-b border-zinc-800/40 pb-4 last:border-0 last:pb-0">
                 <div className="flex items-center gap-1 text-amber-400" aria-label={`${testimonial.avaliacao} de 5 estrelas`}>
