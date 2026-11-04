@@ -31,7 +31,14 @@ interface Rifa {
   disponiveis: number;
   imagens: Array<{ url: string; isPrincipal: boolean }>;
   resultado?: string;
-  ganhadores?: Array<{ nome: string }>;
+  ganhadores?: Array<{
+    nome: string;
+    numeroPremiado: string;
+    dataSorteio: string;
+    cidade?: string;
+    estado?: string;
+    fotoPremioUrl?: string | null;
+  }>;
 }
 
 interface BuyerRank {
@@ -155,7 +162,9 @@ export default function Home() {
   }, [bannerList.length]);
 
   const activeRifas = rifas.filter((r) => r.status === "ATIVO");
-  const finishedRifas = rifas.filter((r) => r.status !== "ATIVO");
+  const latestDraw = rifas
+    .flatMap((rifa) => (rifa.ganhadores || []).map((ganhador) => ({ rifa, ganhador })))
+    .sort((a, b) => new Date(b.ganhador.dataSorteio).getTime() - new Date(a.ganhador.dataSorteio).getTime())[0];
 
   const submitTestimonial = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -549,49 +558,40 @@ export default function Home() {
       {/* 6. FINISHED/CLOSED RAFFLES WITH DECLARED WINNERS */}
       <section id="closed_raffles_section" className="space-y-6 pt-2">
         <div>
-          <h2 className="text-2xl font-black text-white tracking-tight font-display">🏆 Sorteios Recentes & Ganhadores</h2>
-          <p className="text-slate-405 text-slate-400 text-sm font-semibold">Consulte quem levou a melhor nas campanhas já encerradas</p>
+          <h2 className="text-2xl font-black text-white tracking-tight font-display">🏆 Último sorteio e ganhador</h2>
+          <p className="text-slate-400 text-sm font-semibold">Resultado mais recente registrado no sistema</p>
         </div>
 
         {loading ? (
           <div className="h-44 bg-zinc-900/60 animate-pulse rounded-2xl border border-zinc-805"></div>
-        ) : finishedRifas.length === 0 ? (
+        ) : !latestDraw ? (
           <div className="bg-[#131317] border border-zinc-850 p-8 text-center rounded-2xl">
-            <p className="text-slate-400 text-sm font-semibold">Aguardando a conclusão da primeira ação para premiar o primeiro vencedor!</p>
+            <p className="text-slate-400 text-sm font-semibold">O resultado do primeiro sorteio aparecerá aqui quando for registrado.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {finishedRifas.map((rifa) => {
-              const principalImg = rifa.imagens?.find((i) => i.isPrincipal)?.url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
-              const isFinal = rifa.status === "FINALIZADO";
-
+          <div className="grid grid-cols-1 gap-6">
+            {(() => {
+              const { rifa, ganhador } = latestDraw;
+              const principalImg = rifa.imagens?.find((i) => i.isPrincipal)?.url || ganhador.fotoPremioUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
               return (
-                <div key={rifa.id} className="bg-[#131317] border border-zinc-805 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center">
+                <article className="bg-[#131317] border border-zinc-805 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center">
                   <div className="w-full sm:w-1/3 aspect-video sm:aspect-square rounded-xl overflow-hidden bg-slate-900 shrink-0">
-                    <img src={principalImg} alt={rifa.titulo} className="w-full h-full object-cover grayscale opacity-90" />
+                    <img src={principalImg} alt={rifa.titulo} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 space-y-2 text-center sm:text-left bg-transparent">
-                    <span className="inline-block bg-zinc-850 text-slate-300 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                      {isFinal ? "Finalizado" : "Encerrado"}
-                    </span>
-                    <h3 className="text-sm font-black text-slate-100 leading-tight font-display">{rifa.titulo}</h3>
-                    
-                    {isFinal && rifa.resultado ? (
-                      <div className="bg-zinc-900/85 border border-zinc-800/60 p-2.5 rounded-xl text-xs space-y-1 shadow-inner">
-                        <div className="font-bold text-slate-300 flex items-center justify-center sm:justify-start gap-1">
-                          <Trophy className="w-3.5 h-3.5 text-amber-500 inline shrink-0" /> Bilhete Sorteado: <strong className="text-emerald-400 font-black">{rifa.resultado}</strong>
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-semibold text-left line-clamp-1">
-                          Ganhador: {rifa.ganhadores?.[0]?.nome || "Pendente de confirmação"}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-slate-500 font-semibold italic">Apurando números em breve...</p>
-                    )}
+                    <span className="inline-block bg-emerald-500/10 text-emerald-300 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">Sorteio realizado</span>
+                    <h3 className="text-base font-black text-slate-100 leading-tight font-display">{rifa.titulo}</h3>
+                    <div className="bg-zinc-900/85 border border-zinc-800/60 p-3 rounded-xl text-sm space-y-1 shadow-inner">
+                      <p className="font-bold text-slate-300 flex items-center justify-center sm:justify-start gap-1.5">
+                        <Trophy className="w-4 h-4 text-amber-500 shrink-0" /> Bilhete sorteado: <strong className="text-emerald-400 font-black">{ganhador.numeroPremiado}</strong>
+                      </p>
+                      <p className="text-xs text-slate-400">Ganhador: <strong className="text-slate-200">{ganhador.nome}</strong>{ganhador.cidade ? ` · ${ganhador.cidade}${ganhador.estado ? ` - ${ganhador.estado}` : ""}` : ""}</p>
+                      <p className="text-xs text-slate-500">Sorteado em {new Date(ganhador.dataSorteio).toLocaleDateString("pt-BR")}</p>
+                    </div>
                   </div>
-                </div>
+                </article>
               );
-            })}
+            })()}
           </div>
         )}
       </section>

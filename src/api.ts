@@ -54,6 +54,7 @@ apiRouter.get("/pedidos/ranking", async (_req, res) => {
   }
 });
 apiRouter.get("/estatisticas-publicas", async (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   try {
     const [pedidosPagos, cotasConfirmadas, buyers] = await Promise.all([
       prisma.pedido.count({ where: { status: "PAGO" } }),
