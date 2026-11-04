@@ -178,6 +178,50 @@ export default function Checkout() {
         </div>
       </section>
 
+      {/* SHOW PIX FIRST SO THE CUSTOMER CAN PAY WITHOUT SCROLLING PAST THE ORDER DETAILS */}
+      {!isPago && !isCancelado && (
+        <section className="bg-[#131317] border border-zinc-800/60 shadow-lg rounded-3xl p-6 space-y-6">
+          <div className="text-center space-y-1">
+            <h3 className="font-black text-white text-lg flex items-center justify-center gap-1.5 font-display">
+              <QrCode className="w-5 h-5 text-emerald-400" /> Pague via Pix QR Code ou Copia e Cola
+            </h3>
+            <p className="text-slate-400 text-xs font-semibold">Abra o aplicativo de seu banco parceiro, selecione pagar via PIX e aponte a câmera para o QR code ou cole o código abaixo.</p>
+          </div>
+
+          <div className="flex justify-center bg-white w-fit mx-auto p-4 rounded-3xl shadow-sm">
+            {pedido.pixQrCode ? (
+              <img src={pedido.pixQrCode} alt="PIX QR Code" className="w-48 h-48" />
+            ) : (
+              <div className="bg-zinc-900 p-8 h-48 w-48 text-center rounded-2xl">Aguardando QR...</div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <span className="block text-xs font-black text-slate-400 uppercase">Copia e Cola PIX</span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={pedido.pixCopiaCola || "Gerando chave do banco..."}
+                className="w-full bg-zinc-900/60 border border-zinc-805 p-3.5 rounded-xl font-mono text-[10px] font-semibold text-slate-300 select-all outline-hidden"
+              />
+              <button
+                onClick={handleCopyCode}
+                className="bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-black p-3.5 rounded-xl transition duration-150 shrink-0 flex items-center gap-1 shadow-md shadow-emerald-500/10 text-xs"
+              >
+                {copied ? (
+                  <Check className="w-4.5 h-4.5 text-neutral-950" />
+                ) : (
+                  <>
+                    <Copy className="w-4.5 h-4.5 text-neutral-950" /> Copiar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* DETAILS ORDER COMPROMISE GRID */}
       <section className="bg-[#131317] border border-zinc-800/60 rounded-3xl p-6 shadow-lg space-y-6">
         <div className="border-b border-zinc-800/60 pb-4">
@@ -221,57 +265,12 @@ export default function Checkout() {
         </details>
 
         <div className="flex justify-between items-center bg-zinc-900/60 p-4 rounded-2xl border border-zinc-800/50 pt-4">
-          <span className="text-xs text-slate-400 font-bold">Total Arrecadado:</span>
+          <span className="text-xs text-slate-400 font-bold">Valor total:</span>
           <span className="text-xl font-black text-white">
             R$ {pedido.valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       </section>
-
-      {/* COPIA COLA PIX PAYLOAD INFO SCREEN */}
-      {!isPago && !isCancelado && (
-        <section className="bg-[#131317] border border-zinc-800/60 shadow-lg rounded-3xl p-6 space-y-6">
-          <div className="text-center space-y-1">
-            <h3 className="font-black text-white text-lg flex items-center justify-center gap-1.5 font-display">
-              <QrCode className="w-5 h-5 text-emerald-400" /> Pague via Pix QR Code ou Copia e Cola
-            </h3>
-            <p className="text-slate-400 text-xs font-semibold">Abra o aplicativo de seu banco parceiro, selecione pagar via PIX e aponte a câmera para o QR code ou cole o código abaixo.</p>
-          </div>
-
-          <div className="flex justify-center bg-white w-fit mx-auto p-4 rounded-3xl shadow-sm">
-            {pedido.pixQrCode ? (
-              <img src={pedido.pixQrCode} alt="PIX QR Code" className="w-48 h-48" />
-            ) : (
-              <div className="bg-zinc-900 p-8 h-48 w-48 text-center rounded-2xl">Aguardando QR...</div>
-            )}
-          </div>
-
-          {/* Copiar e colar code block */}
-          <div className="space-y-2">
-            <span className="block text-xs font-black text-slate-400 uppercase">Copia e Cola PIX</span>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                readOnly 
-                value={pedido.pixCopiaCola || "Gerando chave do banco..."}
-                className="w-full bg-zinc-900/60 border border-zinc-805 p-3.5 rounded-xl font-mono text-[10px] font-semibold text-slate-300 select-all outline-hidden"
-              />
-              <button 
-                onClick={handleCopyCode}
-                className="bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-black p-3.5 rounded-xl transition duration-150 shrink-0 flex items-center gap-1 shadow-md shadow-emerald-500/10 text-xs"
-              >
-                {copied ? (
-                  <Check className="w-4.5 h-4.5 text-neutral-950" />
-                ) : (
-                  <>
-                    <Copy className="w-4.5 h-4.5 text-neutral-950" /> Copiar
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* PIX aguardando confirmação automática */}
 {!isPago && !isCancelado && (
