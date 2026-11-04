@@ -515,7 +515,7 @@ export default function Home() {
                   {Array.from({ length: testimonial.avaliacao }, (_, index) => <Star key={index} className="h-4 w-4 fill-current" />)}
                 </div>
                 <p className="text-sm text-slate-300 leading-relaxed">“{testimonial.mensagem}”</p>
-                <p className="text-xs font-bold text-slate-400">{testimonial.nomePublico} · compra confirmada</p>
+                <p className="text-xs font-bold text-slate-400">{testimonial.nomePublico}</p>
               </article>
             ))}
           </div>
