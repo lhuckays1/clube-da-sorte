@@ -94,6 +94,9 @@ async function main() {
   const alreadyMarked = current.sourceOrders.filter(o => parseMeta(o.gatewayMeta).receitaTransferida?.tipo === TRANSFER_TYPE);
   const migrationTotalNow = plan.assignments.reduce((sum, x) => sum + x.order.valorTotal, 0);
   const recognizedCashNow = current.paidOrders.filter(o => parseMeta(o.gatewayMeta).tipo !== MIGRATION_TYPE).reduce((sum, o) => sum + o.valorTotal, 0);
+  const currentAttributionMatches = Math.abs(migrationTotalNow - plan.sourcePaidTotal) < 0.00001
+    && alreadyMarked.length === current.sourceOrders.length
+    && plan.assignments.every(x => parseMeta(x.order.gatewayMeta).receitaAtribuida === x.originalAmount);
 
   console.log(JSON.stringify({
     mode: APPLY ? 'APPLY' : 'PLAN_READ_ONLY',
@@ -108,6 +111,7 @@ async function main() {
     globalRevenueAfter: Number(recognizedCashNow.toFixed(2)),
     revenueAttributedToRaffle9After: Number(plan.sourcePaidTotal.toFixed(2)),
     existingSourceTransferMarkers: alreadyMarked.length,
+    attributionAlreadyAppliedAndConsistent: currentAttributionMatches,
     assignments: plan.assignments.map(x => ({ migrationOrder: x.order.hash, sourceOrderIds: x.originalIds, creditedAmount: Number(x.originalAmount.toFixed(2)), tickets: x.item.quantidade })),
     originalProviderOrderValuesWillChange: false,
   }, null, 2));
@@ -152,8 +156,11 @@ async function main() {
   const verified = validate(after);
   const recognizedAfter = after.paidOrders.filter(o => parseMeta(o.gatewayMeta).tipo !== MIGRATION_TYPE).reduce((sum, o) => sum + o.valorTotal, 0);
   const attributedAfter = verified.assignments.reduce((sum, x) => sum + x.order.valorTotal, 0);
-  const valid = Math.abs(recognizedAfter - verified.sourcePaidTotal) < 0.00001 && Math.abs(attributedAfter - verified.sourcePaidTotal) < 0.00001 && verified.assignments.every(x => parseMeta(x.order.gatewayMeta).receitaAtribuida === x.originalAmount) && after.sourceOrders.every(o => parseMeta(o.gatewayMeta).receitaTransferida?.tipo === TRANSFER_TYPE);
-  console.log(JSON.stringify({ mode: 'APPLIED', valid, globalRevenue: Number(recognizedAfter.toFixed(2)), raffle9Revenue: Number(attributedAfter.toFixed(2)), originalSourceValuesPreserved: after.sourceOrders.every(o => o.status === 'PAGO'), migratedTickets: verified.migrationTickets }, null, 2));
+  const sourceMarkersPresent = after.sourceOrders.every(o => parseMeta(o.gatewayMeta).receitaTransferida?.tipo === TRANSFER_TYPE);
+  const migrationAttributionsMatch = verified.assignments.every(x => parseMeta(x.order.gatewayMeta).receitaAtribuida === x.originalAmount);
+  const originalSourceValuesPreserved = after.sourceOrders.every(o => o.status === 'PAGO' && o.valorTotal === current.sourceOrders.find(before => before.id === o.id)?.valorTotal);
+  const valid = Math.abs(recognizedAfter - recognizedCashNow) < 0.00001 && Math.abs(attributedAfter - verified.sourcePaidTotal) < 0.00001 && migrationAttributionsMatch && sourceMarkersPresent && originalSourceValuesPreserved;
+  console.log(JSON.stringify({ mode: 'APPLIED', valid, globalRevenueBefore: Number(recognizedCashNow.toFixed(2)), globalRevenueAfter: Number(recognizedAfter.toFixed(2)), raffle9Revenue: Number(attributedAfter.toFixed(2)), sourceMarkersPresent, migrationAttributionsMatch, originalSourceValuesPreserved, migratedTickets: verified.migrationTickets }, null, 2));
   if (!valid) process.exitCode = 2;
 }
 
