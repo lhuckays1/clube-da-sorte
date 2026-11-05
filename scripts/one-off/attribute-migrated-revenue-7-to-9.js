@@ -1,10 +1,9 @@
-'use strict';
+import { createRequire } from "node:module";
 
 // Reattributes real paid revenue from raffle #7 to the credit orders in #9.
 // Default mode is read-only. The original provider orders and their values are
 // preserved; reporting code excludes the credit copies from global cash totals.
 
-const { createRequire } = require('node:module');
 const projectRequire = createRequire('/opt/clubedasorte/package.json');
 projectRequire('dotenv').config({ path: '/opt/clubedasorte/.env.runtime', quiet: true });
 const { PrismaClient, Prisma } = projectRequire('@prisma/client');
