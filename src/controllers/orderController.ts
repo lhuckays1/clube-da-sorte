@@ -8,6 +8,7 @@ import { broadcastTicketUpdate, broadcastPaymentConfirmed } from "../websocket";
 import { prisma } from "../db";
 import crypto from "node:crypto";
 import { GatewayRepository } from "../repositories/gatewayRepository";
+import { getOrderFinancialLabel } from "../utils/orderAccounting";
 
 export class OrderController {
   static async create(req: Request, res: Response) {
@@ -113,7 +114,7 @@ export class OrderController {
 
       const items = await OrderRepository.listAll({ status, search });
       if ((req as AuthenticatedRequest).user?.role === "SUPER_ADMIN" || items.length === 0) {
-        return res.json(items);
+        return res.json(items.map((order) => ({ ...order, registroFinanceiro: getOrderFinancialLabel(order.gatewayMeta) })));
       }
 
       const premiadas = await prisma.cotaPremiada.findMany({
@@ -132,9 +133,10 @@ export class OrderController {
 
       return res.json(items.map((order) => {
         const numerosPorRifa = numerosPremiadosPorPedido.get(order.id);
-        if (!numerosPorRifa) return order;
+        if (!numerosPorRifa) return { ...order, registroFinanceiro: getOrderFinancialLabel(order.gatewayMeta) };
         return {
           ...order,
+          registroFinanceiro: getOrderFinancialLabel(order.gatewayMeta),
           itens: order.itens.map((item) => {
             const numerosPremiados = numerosPorRifa.get(item.rifaId);
             if (!numerosPremiados) return item;
@@ -426,6 +428,7 @@ function publicOrder(order: any) {
   if (!order) return order;
   return {
     id: order.id, hash: order.hash, status: order.status, valorTotal: order.valorTotal,
+    registroFinanceiro: getOrderFinancialLabel(order.gatewayMeta),
     pixQrCode: order.pixQrCode, pixCopiaCola: order.pixCopiaCola,
     expiracaoPix: order.expiracaoPix, createdAt: order.createdAt,
     comprador: { nome: order.comprador?.nome, cidade: order.comprador?.cidade, estado: order.comprador?.estado },
@@ -433,3 +436,4 @@ function publicOrder(order: any) {
     cotasPremiadas: order.cotasPremiadas?.map((cota: any) => ({ id: cota.id, rifaId: cota.rifaId, numero: cota.numero, premio: cota.premio, status: cota.status, premiadoEm: cota.premiadoEm })),
   };
 }
+
