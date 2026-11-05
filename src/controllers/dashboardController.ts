@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { prisma } from "../db";
+import { isCreditMigrationOrder } from "../utils/orderAccounting";
 
 export class DashboardController {
   static async getStats(req: Request, res: Response) {
@@ -14,19 +15,23 @@ export class DashboardController {
         include: { itens: true },
       });
 
+      // Credit-transfer orders carry raffle attribution but do not represent a
+      // second payment. The source payment remains the global revenue record.
+      const revenueOrders = allPaidOrders.filter((order) => !isCreditMigrationOrder(order.gatewayMeta));
+
       // Income Totals
-      const totalArrecadado = allPaidOrders.reduce((sum, p) => sum + p.valorTotal, 0);
+      const totalArrecadado = revenueOrders.reduce((sum, p) => sum + p.valorTotal, 0);
 
       // Period Sales Calculators
       const now = new Date();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const salesToday = allPaidOrders
+      const salesToday = revenueOrders
         .filter((p) => p.updatedAt >= startOfToday)
         .reduce((sum, p) => sum + p.valorTotal, 0);
 
-      const salesThisMonth = allPaidOrders
+      const salesThisMonth = revenueOrders
         .filter((p) => p.updatedAt >= startOfMonth)
         .reduce((sum, p) => sum + p.valorTotal, 0);
 
@@ -42,7 +47,7 @@ export class DashboardController {
         const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
         const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
 
-        const dayTotalPaid = allPaidOrders
+        const dayTotalPaid = revenueOrders
           .filter((p) => p.updatedAt >= dayStart && p.updatedAt <= dayEnd)
           .reduce((sum, p) => sum + p.valorTotal, 0);
 
@@ -58,7 +63,7 @@ export class DashboardController {
           salesToday,
           salesThisMonth,
           pedidosPendentes: allPendingOrders.length,
-          pedidosPagos: allPaidOrders.length,
+          pedidosPagos: revenueOrders.length,
           totalCompradores,
           activeRifasCount,
           finishedRifasCount,
@@ -70,3 +75,4 @@ export class DashboardController {
     }
   }
 }
+
