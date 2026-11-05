@@ -7,60 +7,95 @@ import { broadcastRaffleStatusUpdate } from "../websocket";
 import { prisma } from "../db";
 import { randomInt } from "node:crypto";
 import { formatTicketNumber } from "../utils/ticketNumber";
+import { isCreditMigrationOrder, isRevenueTransferredSourceOrder } from "../utils/orderAccounting";
+
+async function buildRaffleList(statusFilter?: string, includeRevenue = false) {
+  const rifas = await RaffleRepository.listAll(statusFilter);
+  const now = new Date();
+  const ticketCounts = await prisma.numeroBilhete.groupBy({
+    by: ["rifaId", "status"],
+    where: {
+      OR: [
+        { status: "PAGO" },
+        { status: "RESERVADO", expiraEm: { gt: now } },
+      ],
+    },
+    _count: { id: true },
+  });
+
+  const countsMap: Record<number, { vendidos: number; reservados: number }> = {};
+  for (const rifa of rifas) countsMap[rifa.id] = { vendidos: 0, reservados: 0 };
+  for (const group of ticketCounts) {
+    if (!countsMap[group.rifaId]) countsMap[group.rifaId] = { vendidos: 0, reservados: 0 };
+    if (group.status === "PAGO") countsMap[group.rifaId].vendidos = group._count.id;
+    else if (group.status === "RESERVADO") countsMap[group.rifaId].reservados = group._count.id;
+  }
+
+  const revenueByRaffle = new Map<number, number>();
+  if (includeRevenue) {
+    const paidOrders = await prisma.pedido.findMany({
+      where: { status: "PAGO" },
+      select: { valorTotal: true, gatewayMeta: true, itens: { select: { rifaId: true, quantidade: true, valorUnitario: true } } },
+    });
+    for (const order of paidOrders) {
+      // The original payment remains the global financial record. Its amount
+      // is attributed to the target raffle through the credit migration order.
+      if (isRevenueTransferredSourceOrder(order.gatewayMeta) || order.itens.length === 0) continue;
+      const lineTotals = new Map<number, number>();
+      for (const item of order.itens) {
+        lineTotals.set(item.rifaId, (lineTotals.get(item.rifaId) || 0) + item.quantidade * item.valorUnitario);
+      }
+      // Migration credit orders store the original paid amount on the order
+      // while their raffle item has a 0.99 ticket price. Attribute the full
+      // credited amount to the target raffle instead of recalculating from
+      // the item quantity (which would understate the transferred revenue).
+      if (order.gatewayMeta && isCreditMigrationOrder(order.gatewayMeta)) {
+        const targetId = [...lineTotals.keys()][0];
+        if (targetId !== undefined) {
+          revenueByRaffle.set(targetId, (revenueByRaffle.get(targetId) || 0) + order.valorTotal);
+        }
+        continue;
+      }
+      const raffleIds = [...lineTotals.keys()];
+      if (raffleIds.length === 1) {
+        const id = raffleIds[0];
+        revenueByRaffle.set(id, (revenueByRaffle.get(id) || 0) + order.valorTotal);
+        continue;
+      }
+      const subtotal = [...lineTotals.values()].reduce((sum, value) => sum + value, 0);
+      if (subtotal <= 0) continue;
+      for (const [id, lineTotal] of lineTotals) {
+        revenueByRaffle.set(id, (revenueByRaffle.get(id) || 0) + order.valorTotal * lineTotal / subtotal);
+      }
+    }
+  }
+
+  return rifas.map((rifa) => {
+    const counts = countsMap[rifa.id] || { vendidos: 0, reservados: 0 };
+    return {
+      ...rifa,
+      vendidos: counts.vendidos,
+      reservados: counts.reservados,
+      disponiveis: Math.max(0, rifa.quantidadeTotal - (counts.vendidos + counts.reservados)),
+      ...(includeRevenue ? { receitaAtribuida: revenueByRaffle.get(rifa.id) || 0 } : {}),
+    };
+  });
+}
 
 export class RaffleController {
   static async listPublic(req: Request, res: Response) {
     try {
       const statusFilter = req.query.status ? String(req.query.status) : undefined;
-      const rifas = await RaffleRepository.listAll(statusFilter);
+      res.json(await buildRaffleList(statusFilter));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 
-      const now = new Date();
-      // Single aggregation query to fetch counts of sold and reserved tickets for all raffles (solving N+1 queries issue)
-      const ticketCounts = await prisma.numeroBilhete.groupBy({
-        by: ["rifaId", "status"],
-        where: {
-          OR: [
-            { status: "PAGO" },
-            {
-              status: "RESERVADO",
-              expiraEm: { gt: now },
-            },
-          ],
-        },
-        _count: {
-          id: true,
-        },
-      });
-
-      // Map group-by results into of O(1) memory lookup object
-      const countsMap: Record<number, { vendidos: number; reservados: number }> = {};
-      for (const r of rifas) {
-        countsMap[r.id] = { vendidos: 0, reservados: 0 };
-      }
-
-      for (const group of ticketCounts) {
-        const rId = group.rifaId;
-        if (!countsMap[rId]) {
-          countsMap[rId] = { vendidos: 0, reservados: 0 };
-        }
-        if (group.status === "PAGO") {
-          countsMap[rId].vendidos = group._count.id;
-        } else if (group.status === "RESERVADO") {
-          countsMap[rId].reservados = group._count.id;
-        }
-      }
-
-      const hydratedRifas = rifas.map((rifa) => {
-        const counts = countsMap[rifa.id] || { vendidos: 0, reservados: 0 };
-        return {
-          ...rifa,
-          vendidos: counts.vendidos,
-          reservados: counts.reservados,
-          disponiveis: Math.max(0, rifa.quantidadeTotal - (counts.vendidos + counts.reservados)),
-        };
-      });
-
-      res.json(hydratedRifas);
+  static async listAdmin(req: Request, res: Response) {
+    try {
+      const statusFilter = req.query.status ? String(req.query.status) : undefined;
+      res.json(await buildRaffleList(statusFilter, true));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -856,3 +891,4 @@ export class RaffleController {
   }
   }
 }
+

@@ -32,6 +32,7 @@ interface Rifa {
   dataSorteio: string;
   vendidos: number;
   reservados: number;
+  receitaAtribuida: number;
   temCotasPremiadas: boolean;
   permiteSelecaoManual: boolean;
   quantidadeCotasPremiadas: number;
@@ -114,7 +115,7 @@ export default function AdminRaffles({ token }: { token: string }) {
   const [drawing, setDrawing] = useState(false);
 
   const fetchRifas = () => {
-    fetch("/api/rifas")
+    fetch("/api/admin/rifas", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -127,7 +128,7 @@ export default function AdminRaffles({ token }: { token: string }) {
 
   useEffect(() => {
     fetchRifas();
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     fetch("/api/admin/me", { headers: { Authorization: `Bearer ${token}` } })
@@ -471,13 +472,14 @@ const handleDeleteCombo = async (comboId: number) => {
               <th className="py-3 px-4">Valor / Cotas</th>
               <th className="py-3 px-4">Status</th>
               <th className="py-3 px-4">Vendas (Pagas)</th>
+              <th className="py-3 px-4">Receita Atribuída</th>
               <th className="py-3 px-4 text-center">Ações de Controle</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 text-slate-700 font-semibold">
             {rifas.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-8 text-slate-400 italic">Nenhuma ação cadastrada. Clique em "+" para começar!</td>
+                <td colSpan={6} className="text-center py-8 text-slate-400 italic">Nenhuma ação cadastrada. Clique em "+" para começar!</td>
               </tr>
             ) : (
               rifas.map((rifa) => {
@@ -523,6 +525,9 @@ const handleDeleteCombo = async (comboId: number) => {
                           <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${ratioPct}%` }}></div>
                         </div>
                       </div>
+                    </td>
+                    <td className="py-3 px-4 font-extrabold text-slate-800">
+                      R$ {Number(rifa.receitaAtribuida || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2.5 justify-center items-center">
@@ -1309,3 +1314,4 @@ shadow-sm
     </div>
   );
 }
+

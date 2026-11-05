@@ -11,6 +11,7 @@ import { CotaPremiadaController } from "./controllers/cotaPremiadaController";
 import { TestimonialController } from "./controllers/testimonialController";
 import { prisma } from "./db";
 import rateLimit from "express-rate-limit";
+import { isCreditMigrationOrder } from "./utils/orderAccounting";
 
 export const apiRouter = Router();
 
@@ -56,11 +57,12 @@ apiRouter.get("/pedidos/ranking", async (_req, res) => {
 apiRouter.get("/estatisticas-publicas", async (_req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   try {
-    const [pedidosPagos, cotasConfirmadas, buyers] = await Promise.all([
-      prisma.pedido.count({ where: { status: "PAGO" } }),
+    const [paidOrders, cotasConfirmadas, buyers] = await Promise.all([
+      prisma.pedido.findMany({ where: { status: "PAGO" }, select: { gatewayMeta: true } }),
       prisma.numeroBilhete.count({ where: { status: "PAGO" } }),
       prisma.$queryRaw<Array<{ count: number }>>`SELECT COUNT(DISTINCT "compradorId")::int AS count FROM "Pedido" WHERE status = 'PAGO'`,
     ]);
+    const pedidosPagos = paidOrders.filter((order) => !isCreditMigrationOrder(order.gatewayMeta)).length;
     res.json({ pedidosPagos, cotasConfirmadas, compradoresConfirmados: Number(buyers[0]?.count || 0) });
   } catch {
     res.status(500).json({ error: "Não foi possível carregar os números confirmados" });
@@ -97,6 +99,7 @@ apiRouter.get("/admin/me", authMiddleware, AuthController.me);
 
 // Statistics and Insights Dashboard
 apiRouter.get("/admin/dashboard", authMiddleware, DashboardController.getStats);
+apiRouter.get("/admin/rifas", authMiddleware, RaffleController.listAdmin);
 apiRouter.get("/admin/depoimentos", authMiddleware, TestimonialController.listAdmin);
 apiRouter.patch("/admin/depoimentos/:id", authMiddleware, TestimonialController.review);
 
@@ -276,3 +279,4 @@ apiRouter.delete("/admin/ganhadores/:id", authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
