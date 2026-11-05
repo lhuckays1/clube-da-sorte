@@ -411,7 +411,11 @@ const addQuickTicketsCount = (count: number) => {
           <div className="space-y-3 pt-1 bg-transparent">
             <div className="flex justify-between items-center text-xs font-bold text-slate-405 text-slate-400">
               <span>Progresso Realizado:</span>
-              <span className="text-emerald-400 font-black">{soldCount.toLocaleString()} de {rifa.quantidadeTotal.toLocaleString()} pagos ({progressPercent}%)</span>
+              <span className="text-emerald-400 font-black">
+                {isManualSelectionEnabled
+                  ? `${soldCount.toLocaleString()} de ${rifa.quantidadeTotal.toLocaleString()} pagos (${progressPercent}%)`
+                  : `${progressPercent}%`}
+              </span>
             </div>
             <div className="w-full bg-zinc-950 h-2.5 rounded-full overflow-hidden border border-zinc-800/80">
               <div className="bg-emerald-550 bg-emerald-505 bg-emerald-500 h-full rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }}></div>
