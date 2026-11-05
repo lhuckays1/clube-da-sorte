@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { BuyerRepository } from "../repositories/buyerRepository";
+import { isCreditMigrationOrder } from "../utils/orderAccounting";
 
 export class BuyerController {
   static async listAdmin(req: Request, res: Response) {
@@ -7,7 +8,8 @@ export class BuyerController {
       const compradores = await BuyerRepository.listAll();
 
       const hydratedBuyers = compradores.map((c) => {
-        const paidOrders = c.pedidos.filter((p) => p.status === "PAGO");
+        // Migration orders are revenue attribution records, not a second spend.
+        const paidOrders = c.pedidos.filter((p) => p.status === "PAGO" && !isCreditMigrationOrder(p.gatewayMeta));
         const totalSpent = paidOrders.reduce((sum, p) => sum + p.valorTotal, 0);
         return {
           id: c.id,
@@ -27,3 +29,4 @@ export class BuyerController {
     }
   }
 }
+
