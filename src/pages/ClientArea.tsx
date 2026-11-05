@@ -17,6 +17,7 @@ interface Order {
   id: number;
   hash: string;
   status: string;
+  registroFinanceiro?: "CREDITO_MIGRADO" | "RECEITA_TRANSFERIDA" | null;
   valorTotal: number;
   createdAt: string;
   comprador: { nome: string };
@@ -150,6 +151,7 @@ export default function ClientArea() {
                     <div className="flex justify-between items-start border-b border-zinc-800/60 pb-3">
                       <div>
                         <span className="text-[10px] font-bold text-slate-500">PEDIDO: <strong className="text-slate-200 font-extrabold">{order.hash}</strong></span>
+                        {order.registroFinanceiro && <span className="block text-[9px] text-indigo-300">{order.registroFinanceiro === "CREDITO_MIGRADO" ? "Crédito migrado — sem nova cobrança" : "Pagamento original transferido para outra rifa"}</span>}
                         <h4 className="font-extrabold text-xs text-[#F59E0B] font-display mt-0.5">{item?.rifa?.titulo || "Ação Promocional"}</h4>
                       </div>
                       <span className={`text-[10px] uppercase font-black px-2.5 py-1 rounded-full border ${
@@ -272,3 +274,4 @@ export default function ClientArea() {
     </div>
   );
 }
+
