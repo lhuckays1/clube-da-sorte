@@ -337,10 +337,18 @@ export class RaffleController {
 
   static async delete(req: Request, res: Response) {
     try {
-      const id = parseInt(req.params.id);
-      
+      const id = Number.parseInt(req.params.id, 10);
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ error: "Identificador de rifa inválido." });
+        return;
+      }
+
       const rifa = await RaffleRepository.findById(id);
-      
+      if (!rifa) {
+        res.status(404).json({ error: "Rifa não encontrada." });
+        return;
+      }
+
       await RaffleRepository.delete(id);
 
       // Log action
@@ -348,11 +356,15 @@ export class RaffleController {
       await AdminLogRepository.create({
         usuarioId: user?.id,
         acao: "DELETE_RIFA",
-        detalhes: `Excluiu permanentemente a Rifa: "${rifa?.titulo}" (ID: ${id})`,
+        detalhes: `Excluiu permanentemente a Rifa: "${rifa.titulo}" (ID: ${id})`,
       });
 
       res.json({ success: true, message: "Rifa excluída permanentemente" });
     } catch (error: any) {
+      if (error?.code === "P2003" || error?.code === "P2014") {
+        res.status(409).json({ error: "Não foi possível excluir esta rifa porque existem dados relacionados que precisam ser preservados." });
+        return;
+      }
       res.status(500).json({ error: error.message });
     }
   }

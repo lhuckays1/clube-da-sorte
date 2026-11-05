@@ -335,16 +335,18 @@ const handleDeleteCombo = async (comboId: number) => {
 
   // Delete raffle
   const handleDelete = (rifaId: number) => {
-    if (!confirm("Aviso! Deletar esta rifa excluirá permanentemente todos os pedidos e números comprados vinculados de forma irreversível. Prosseguir?")) return;
+    if (!confirm("Deseja excluir esta rifa? Pedidos, números e dados vinculados também serão removidos permanentemente.")) return;
     fetch(`/api/admin/rifas/${rifaId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
-      .then(() => {
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Não foi possível excluir a rifa.");
+        alert(data.message || "Rifa excluída com sucesso.");
         fetchRifas();
       })
-      .catch((err) => console.error(err));
+      .catch((err) => alert(err.message || "Erro ao excluir a rifa."));
   };
 
   // Submit promo Combo setup
