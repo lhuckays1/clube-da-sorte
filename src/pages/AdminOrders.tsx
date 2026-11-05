@@ -16,6 +16,7 @@ interface Order {
   id: number;
   hash: string;
   status: string; // PENDENTE, PAGO, CANCELADO
+  registroFinanceiro?: "CREDITO_MIGRADO" | "RECEITA_TRANSFERIDA" | null;
   valorTotal: number;
   createdAt: string;
   comprador: { nome: string; telefone: string; cidade: string; estado: string };
@@ -233,6 +234,7 @@ export default function AdminOrders({ token }: { token: string }) {
                         <td className="py-3.5 px-4">
                           <div className="space-y-0.5">
                             <strong className="text-slate-800 text-sm font-extrabold">{order.hash}</strong>
+                            {order.registroFinanceiro && <span className="text-[9px] text-indigo-600 block">{order.registroFinanceiro === "CREDITO_MIGRADO" ? "Crédito migrado — sem nova cobrança" : "Receita atribuída à rifa migrada"}</span>}
                             <span className="text-[10px] text-slate-400 block">{new Date(order.createdAt).toLocaleString("pt-BR")}</span>
                           </div>
                         </td>
@@ -349,3 +351,4 @@ export default function AdminOrders({ token }: { token: string }) {
     </div>
   );
 }
+
